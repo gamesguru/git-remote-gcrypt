@@ -5,9 +5,8 @@ SHELL:=/bin/bash
 .PHONY: test
 test: clean
 # 	kcov --include-path=./git-remote-gcrypt --exclude-path=$(pwd)/.git,$(pwd)/debian,$(pwd)/tests \
-# 		.kcov/ ./tests/system-test.sh
-	kcov --include-path=./git-remote-gcrypt --exclude-path=$(pwd)/.git,$(pwd)/debian,$(pwd)/tests \
-		.kcov ./tests/system-test-multikey.sh
+# 		.kcov/01/ ./tests/system-test.sh
+	kcov --include-path="$(pwd)/git-remote-gcrypt" --exclude-path=$(pwd)/tests .kcov/02/ ./tests/system-test-multikey.sh
 # 	kcov --include-path=$(pwd) --exclude-path=$(pwd)/.git,$(pwd)/debian,$(pwd)/tests \
 # 		.kcov ./tests/system-test.sh
 # 	kcov --include-path=$(pwd) --exclude-path=$(pwd)/.git,$(pwd)/debian,$(pwd)/tests \
