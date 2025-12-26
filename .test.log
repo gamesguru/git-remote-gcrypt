@@ -1,240 +1,0 @@
-Step 1: Creating a new GPG key and subkey to use for testing:
-    + gpg --batch --passphrase '' --quick-generate-key 'git-remote-gcrypt <git-remote-gcrypt@example.com>'
-    gpg: keybox '/tmp/tmp.bwHNJYfLc9/gpg/pubring.kbx' created
-    gpg: /tmp/tmp.bwHNJYfLc9/gpg/trustdb.gpg: trustdb created
-    gpg: directory '/tmp/tmp.bwHNJYfLc9/gpg/openpgp-revocs.d' created
-    gpg: revocation certificate stored as '/tmp/tmp.bwHNJYfLc9/gpg/openpgp-revocs.d/A9FFB284F3FAC4D00357D328B45A6E5E54343321.rev'
-    + gpg -K
-    gpg: checking the trustdb
-    gpg: marginals needed: 3  completes needed: 1  trust model: pgp
-    gpg: depth: 0  valid:   1  signed:   0  trust: 0-, 0q, 0n, 0m, 0f, 1u
-    gpg: next trustdb check due at 2028-12-23
-    /tmp/tmp.bwHNJYfLc9/gpg/pubring.kbx
-    -----------------------------------
-    sec   ed25519 2025-12-24 [SC] [expires: 2028-12-23]
-          A9FFB284F3FAC4D00357D328B45A6E5E54343321
-    uid           [ultimate] git-remote-gcrypt <git-remote-gcrypt@example.com>
-    ssb   cv25519 2025-12-24 [E]
-    
-
-**********************************************************************
-
-Step 2: Creating new repository with random data:
-    Initialized empty Git repository in /tmp/tmp.bwHNJYfLc9/first/.git/
-    Writing random file 1/15: ${tempdir}/first/0.data 
-        First 24 bytes in base64: psR1/S/fdRqBInqmbxNOvnb1MFaFBuwR
-    Writing random file 2/15: ${tempdir}/first/1.data 
-        First 24 bytes in base64: zn5P3MYBTAr8KVz5Q7n+7DnYn+5ZEyxF
-    Writing random file 3/15: ${tempdir}/first/2.data 
-        First 24 bytes in base64: KGZI1bXWcScK4K4cQlHF8gQrUzsF+8Bu
-    [main (root-commit) e439bd4] Commit #0
-     3 files changed, 0 insertions(+), 0 deletions(-)
-     create mode 100644 0.data
-     create mode 100644 1.data
-     create mode 100644 2.data
-    Writing random file 4/15: ${tempdir}/first/3.data 
-        First 24 bytes in base64: mCtuE/105XgI3rpznzb4MgBNSF7rh0Ci
-    Writing random file 5/15: ${tempdir}/first/4.data 
-        First 24 bytes in base64: EY11EDobGC6lsRY6teewItpknUqrxXup
-    Writing random file 6/15: ${tempdir}/first/5.data 
-        First 24 bytes in base64: zlIo47AMI533RFJ0Jq8An5OvzWZleDpC
-    [main 5c4ff39] Commit #1
-     3 files changed, 0 insertions(+), 0 deletions(-)
-     create mode 100644 3.data
-     create mode 100644 4.data
-     create mode 100644 5.data
-    Writing random file 7/15: ${tempdir}/first/6.data 
-        First 24 bytes in base64: CDMwFSDvy/jzFXreQjnZXE9kh5LJR/Xl
-    Writing random file 8/15: ${tempdir}/first/7.data 
-        First 24 bytes in base64: PGCUrhSB0eMGU5Kf3WcW0eGkejlSSCu5
-    Writing random file 9/15: ${tempdir}/first/8.data 
-        First 24 bytes in base64: MixQjk3zaqOjw77Z5XsdAvDRGb+ukXHU
-    [main a8f04d1] Commit #2
-     3 files changed, 0 insertions(+), 0 deletions(-)
-     create mode 100644 6.data
-     create mode 100644 7.data
-     create mode 100644 8.data
-    Writing random file 10/15: ${tempdir}/first/9.data 
-        First 24 bytes in base64: LzhCiqqhZzXX7THgOs7M5wdeWP4mke6F
-    Writing random file 11/15: ${tempdir}/first/10.data 
-        First 24 bytes in base64: Ry6FunDrH64hLf452sxhHNEsugCR54gf
-    Writing random file 12/15: ${tempdir}/first/11.data 
-        First 24 bytes in base64: U5T8euFKSgdrltsA1u95y535ufDAiBeM
-    [main ca322e3] Commit #3
-     3 files changed, 0 insertions(+), 0 deletions(-)
-     create mode 100644 10.data
-     create mode 100644 11.data
-     create mode 100644 9.data
-    Writing random file 13/15: ${tempdir}/first/12.data 
-        First 24 bytes in base64: O+Bq4q1ssMNq2G+rt1MOClhS9a3WRJ8s
-    Writing random file 14/15: ${tempdir}/first/13.data 
-        First 24 bytes in base64: 6KNYcZo0r9OApRg67XrVP0A1tbzXSs+C
-    Writing random file 15/15: ${tempdir}/first/14.data 
-        First 24 bytes in base64: hXyRxoyt2gLHfJGzeLQDWZoQNkJJ1Nwn
-    [main 593a4e9] Commit #4
-     3 files changed, 0 insertions(+), 0 deletions(-)
-     create mode 100644 12.data
-     create mode 100644 13.data
-     create mode 100644 14.data
-    
-    For reference, here is the commit log for the repository:
-        593a4e9e9fb4c870c36b6204511bd66a6120d434 Commit #4
-        ca322e3275a6b93172c452c1a3a45d0f28f12231 Commit #3
-        a8f04d19cbdfdb7672a4f6615f257ab91afe7b92 Commit #2
-        5c4ff39027dc3a2ed856ada09ae0929cb41ce41d Commit #1
-        e439bd4e6da82617db316e638a3002a4b1f9de67 Commit #0
-
-**********************************************************************
-
-Step 3: Creating an empty bare repository to receive pushed data:
-    Initialized empty Git repository in /tmp/tmp.bwHNJYfLc9/second.git/
-
-**********************************************************************
-
-Step 4: Pushing the first repository to the second one using gitception:
-    + cd /tmp/tmp.bwHNJYfLc9/first
-    + git push -f gcrypt::/tmp/tmp.bwHNJYfLc9/second.git#main main
-    gcrypt: Repository not found: /tmp/tmp.bwHNJYfLc9/second.git
-    gcrypt: Setting up new repository
-    gcrypt: Remote ID is :id:6cUM55pbg+I+zYR2GR1B
-    gcrypt: Encrypting to: --throw-keyids --default-recipient-self
-    gcrypt: Requesting manifest signature
-    To gcrypt::/tmp/tmp.bwHNJYfLc9/second.git#main
-     * [new branch]      main -> main
-    
-    For reference, here is the directory tree of second.git:
-    /tmp/tmp.bwHNJYfLc9/second.git
-    ├── config
-    ├── HEAD
-    ├── objects
-    │   ├── 03
-    │   │   └── b6275e948d6e72c1cdaf7db15aec2fcc843f54
-    │   ├── 33
-    │   │   └── 340ece0bd934d94e12d1d4b74663797d563ed6
-    │   ├── 8b
-    │   │   └── 8b32c5fcaad20e2984b73cb44cfbe630bba546
-    │   ├── 9a
-    │   │   └── 7e04fe81255898d56581866dee438e638ef21e
-    │   ├── info
-    │   └── pack
-    └── refs
-        ├── heads
-        │   └── main
-        └── tags
-    
-    11 directories, 7 files
-    
-    Here is the size of each object file in second.git:
-        4.0K	./03/b6275e948d6e72c1cdaf7db15aec2fcc843f54
-        4.0K	./9a/7e04fe81255898d56581866dee438e638ef21e
-        80M	./33/340ece0bd934d94e12d1d4b74663797d563ed6
-        4.0K	./8b/8b32c5fcaad20e2984b73cb44cfbe630bba546
-    
-    Note that git-pack-objects(1) will try to ensure that each object is
-    smaller than pack.packSizeLimit (12m here) but this isn't always
-    possible because each object contains at least one of our random
-    files, and each random file has a certain minimum size. As a result,
-    pack.packSizeLimit is more of a suggestion than a hard limit.
-
-**********************************************************************
-
-Step 5: Cloning the second repository using gitception:
-    + git clone -b main gcrypt::/tmp/tmp.bwHNJYfLc9/second.git#main -- /tmp/tmp.bwHNJYfLc9/third
-    Cloning into '/tmp/tmp.bwHNJYfLc9/third'...
-    gcrypt: Decrypting manifest
-    gpg: Signature made Wed 24 Dec 2025 02:21:02 AM EST
-    gpg:                using EDDSA key A9FFB284F3FAC4D00357D328B45A6E5E54343321
-    gpg: Good signature from "git-remote-gcrypt <git-remote-gcrypt@example.com>" [ultimate]
-    gcrypt: Remote ID is :id:6cUM55pbg+I+zYR2GR1B
-    Receiving objects:   4% (1/25)Receiving objects:   8% (2/25)Receiving objects:  12% (3/25)Receiving objects:  16% (4/25)Receiving objects:  20% (5/25)Receiving objects:  24% (6/25)Receiving objects:  28% (7/25)Receiving objects:  32% (8/25)Receiving objects:  36% (9/25)Receiving objects:  40% (10/25)Receiving objects:  44% (11/25)Receiving objects:  48% (12/25)Receiving objects:  52% (13/25)Receiving objects:  56% (14/25)Receiving objects:  60% (15/25)Receiving objects:  64% (16/25)Receiving objects:  68% (17/25)Receiving objects:  72% (18/25)Receiving objects:  76% (19/25)Receiving objects:  80% (20/25)Receiving objects:  84% (21/25)Receiving objects:  88% (22/25)Receiving objects:  92% (23/25)Receiving objects:  96% (24/25)Receiving objects: 100% (25/25)Receiving objects: 100% (25/25), 75.02 MiB | 157.75 MiB/s, done.
-    Resolving deltas:   0% (0/5)Resolving deltas:  20% (1/5)Resolving deltas:  40% (2/5)Resolving deltas:  60% (3/5)Resolving deltas:  80% (4/5)Resolving deltas: 100% (5/5)Resolving deltas: 100% (5/5), done.
-    
-    Verifying that the first and third repositories have the same
-    commit log as each other:
-        Verification succeeded.
-    
-    Verifying that the first and third repositories have the same
-    files in their respective working directories:
-        + diff -r --exclude .git -- /tmp/tmp.bwHNJYfLc9/first /tmp/tmp.bwHNJYfLc9/third
-        Verification succeeded.
-
-**********************************************************************
-
-Step 1: Creating multiple GPG keys for participants...
-    + (( i = 0 ))
-    + (( i < num_keys ))
-    + gpg --batch --passphrase '' --quick-generate-key 'git-remote-gcrypt0 <git-remote-gcrypt@example.com0>'
-    gpg: keybox '/tmp/tmp.9wm85knA5y/gpg/pubring.kbx' created
-    gpg: /tmp/tmp.9wm85knA5y/gpg/trustdb.gpg: trustdb created
-    gpg: directory '/tmp/tmp.9wm85knA5y/gpg/openpgp-revocs.d' created
-    gpg: revocation certificate stored as '/tmp/tmp.9wm85knA5y/gpg/openpgp-revocs.d/4E82118B8016A547E72774DD6609CC08AF687C82.rev'
-    + (( i++ ))
-    + (( i < num_keys ))
-    + gpg --batch --passphrase '' --quick-generate-key 'git-remote-gcrypt1 <git-remote-gcrypt@example.com1>'
-    gpg: revocation certificate stored as '/tmp/tmp.9wm85knA5y/gpg/openpgp-revocs.d/5351063D7F6797E89AE90C8D21BA5C5C1DFD184E.rev'
-    + (( i++ ))
-    + (( i < num_keys ))
-    + gpg --batch --passphrase '' --quick-generate-key 'git-remote-gcrypt2 <git-remote-gcrypt@example.com2>'
-    gpg: revocation certificate stored as '/tmp/tmp.9wm85knA5y/gpg/openpgp-revocs.d/F8893BE986E4E83BDEED64446DCA1D3944B89FBB.rev'
-    + (( i++ ))
-    + (( i < num_keys ))
-    Generated keys: 4E82118B8016A547E72774DD6609CC08AF687C82 F89D3A42F3CAA68EA8D7D61AA8672DFF6269E76E 5351063D7F6797E89AE90C8D21BA5C5C1DFD184E 997380DB2AE82582FF1E802A4D6B3A2DA435D85C F8893BE986E4E83BDEED64446DCA1D3944B89FBB E99EA2347A99D1745BCB954D148E3E44E6B38D9E
-
-**********************************************************************
-
-Step 2: Creating source repository...
-    Initialized empty Git repository in /tmp/tmp.9wm85knA5y/first/.git/
-        4bdd9c323fff87dfb1c57f427f2c8b4b9925944e Commit #4
-        d22117063bd3ac974da0fb890db06c5811b30970 Commit #3
-        2819843df5d9009d497454d113132680ba0108bb Commit #2
-        69b51b5a4e15abcc0d2de1b2713097c41008db28 Commit #1
-        338891c471a51d06779619b23fee8559b9bdf85f Commit #0
-
-**********************************************************************
-
-Step 3: Creating bare remote...
-    Initialized empty Git repository in /tmp/tmp.9wm85knA5y/second.git/
-
-**********************************************************************
-
-Step 4: Pushing with MULTIPLE participants [Key 0 and Key 1]...
-    + cd /tmp/tmp.9wm85knA5y/first
-    + git config gcrypt.participants '4E82118B8016A547E72774DD6609CC08AF687C82 F89D3A42F3CAA68EA8D7D61AA8672DFF6269E76E'
-    + git push -f gcrypt::/tmp/tmp.9wm85knA5y/second.git#main main
-    gcrypt: Repository not found: /tmp/tmp.9wm85knA5y/second.git
-    gcrypt: Setting up new repository
-    gcrypt: Remote ID is :id:ynU9/4BTndPNyGejFVNX
-    gcrypt: Encrypting to:  -R 6609CC08AF687C82 -R 6609CC08AF687C82
-    gcrypt: Requesting manifest signature
-    gpg: 6609CC08AF687C82: skipped: public key already present
-    To gcrypt::/tmp/tmp.9wm85knA5y/second.git#main
-     * [new branch]      main -> main
-
-**********************************************************************
-
-Step 5: Unhappy Path - Test clone with NO matching keys...
-    Cloning into '/tmp/tmp.9wm85knA5y/fail_test'...
-    gpg: keybox '/tmp/tmp.9wm85knA5y/gpg-empty/pubring.kbx' created
-    gcrypt: Decrypting manifest
-    gpg: public key decryption failed: No secret key
-    gpg: decryption failed: No secret key
-    gcrypt: ignoring GPG errors (likely anonymous recipient OR pinentry).
-    gcrypt: Failed to verify manifest signature!
-    gcrypt: Only accepting signatories: (default keyring)
-    gcrypt: Failed to decrypt manifest!
-    Clone failed as expected.
-
-**********************************************************************
-
-Step 6: Happy Path - Clone using valid keyring...
-    + git clone -b main gcrypt::/tmp/tmp.9wm85knA5y/second.git#main -- /tmp/tmp.9wm85knA5y/third
-    Cloning into '/tmp/tmp.9wm85knA5y/third'...
-    gcrypt: Decrypting manifest
-    gpg: Signature made Wed 24 Dec 2025 02:21:51 AM EST
-    gpg:                using EDDSA key 4E82118B8016A547E72774DD6609CC08AF687C82
-    gpg: Good signature from "git-remote-gcrypt0 <git-remote-gcrypt@example.com0>" [ultimate]
-    gcrypt: Remote ID is :id:ynU9/4BTndPNyGejFVNX
-    Receiving objects:   4% (1/25)Receiving objects:   8% (2/25)Receiving objects:  12% (3/25)Receiving objects:  16% (4/25)Receiving objects:  20% (5/25)Receiving objects:  24% (6/25)Receiving objects:  28% (7/25)Receiving objects:  32% (8/25)Receiving objects:  36% (9/25)Receiving objects:  40% (10/25)Receiving objects:  44% (11/25)Receiving objects:  48% (12/25)Receiving objects:  52% (13/25)Receiving objects:  56% (14/25)Receiving objects:  60% (15/25)Receiving objects:  64% (16/25)Receiving objects:  68% (17/25)Receiving objects:  72% (18/25)Receiving objects:  76% (19/25)Receiving objects:  80% (20/25)Receiving objects:  84% (21/25)Receiving objects:  88% (22/25)Receiving objects:  92% (23/25)Receiving objects:  96% (24/25)Receiving objects: 100% (25/25)Receiving objects: 100% (25/25), 16.45 KiB | 16.45 MiB/s, done.
-    Resolving deltas:   0% (0/5)Resolving deltas:  20% (1/5)Resolving deltas:  40% (2/5)Resolving deltas:  60% (3/5)Resolving deltas:  80% (4/5)Resolving deltas: 100% (5/5)Resolving deltas: 100% (5/5), done.
-    Verifying content match...
-        Verification succeeded.
