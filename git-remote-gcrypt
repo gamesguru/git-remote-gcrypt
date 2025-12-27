@@ -30,6 +30,7 @@ Gref="refs/gcrypt/gitception$GITCEPTION"
 Gref_rbranch="refs/heads/master"
 Packkey_bytes=63  # nbr random bytes for packfile keys, any >= 256 bit is ok
 Hashtype=SHA256   # SHA512 SHA384 SHA256 SHA224 supported.
+VERSION="@@DEV_VERSION@@"
 Manifestfile=91bd0c092128cf2e60e1a608c31e92caf1f9c1595f83f2890ef17c0e4881aa0a
 Hex40="[a-f0-9]"
 Hex40=$Hex40$Hex40$Hex40$Hex40$Hex40$Hex40$Hex40$Hex40
@@ -856,8 +857,8 @@ EOF
 	done <<EOF
 $1
 EOF
-	
-	echo_git 
+
+	echo_git
 }
 
 cleanup_tmpfiles()
@@ -901,6 +902,8 @@ gcrypt_main_loop()
 
 	NAME=$1  # Remote name
 	URL=$2   # Remote URL
+
+	echo_info "git-remote-gcrypt version $VERSION"
 
 	setup
 
@@ -965,6 +968,9 @@ then
 	then
 		exit 100
 	fi
+elif [ "x$1" = x--version ] || [ "x$1" = x-v ]; then
+	echo "git-remote-gcrypt version $VERSION"
+	exit 0
 else
 	gcrypt_main_loop "$@"
 fi

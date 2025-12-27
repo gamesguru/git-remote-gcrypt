@@ -1,0 +1,48 @@
+---
+name: CI
+
+"on": push
+
+permissions:
+  contents: read
+
+jobs:
+  install-deb:
+    runs-on: [ubuntu-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify OS Version [debian]
+        run: |
+          cat /etc/os-release
+          grep 'ID_LIKE=debian' /etc/os-release
+          [ "$(grep 'ID_LIKE=debian' /etc/os-release)" ]
+
+      - name: Install script [debian]
+        run: sudo ./install.sh
+
+      - name: Test - install script & versioning [debian]
+        run: bash ./tests/test-install-dists.sh
+
+  install-rh:
+    runs-on: ubuntu-latest
+    container: # RedHat test on GitHub needs docker container
+      image: registry.access.redhat.com/ubi9/ubi:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify OS Version [redhat]
+        run: cat /etc/redhat-release
+
+      - name: Install System Dependencies [redhat]
+        run: dnf install -y git python3-docutils
+
+      - name: Install script [redhat]
+        run: ./install.sh
+
+      - name: Test - install script & versioning [redhat]
+        run: bash ./tests/test-install-dists.sh
