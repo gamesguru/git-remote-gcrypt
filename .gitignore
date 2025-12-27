@@ -1,3 +1,6 @@
 /debian/files
 /debian/git-remote-gcrypt.substvars
 /debian/git-remote-gcrypt
+
+# Test coverage
+.kcov
