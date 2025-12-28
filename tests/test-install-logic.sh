@@ -82,7 +82,7 @@ assert_version "$EXPECTED_TAG"
 
 # --- TEST 3: DESTDIR Support ---
 echo "--- Test 3: DESTDIR Support ---"
-rm -rf "$SANDBOX/usr"
+rm -rf "${SANDBOX:?}/usr"
 export DESTDIR="$SANDBOX/pkg_root"
 export prefix="/usr"
 
