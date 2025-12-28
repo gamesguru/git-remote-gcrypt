@@ -54,58 +54,16 @@ jobs:
 
       # --- SUITE 1: INSTALLER ---
       - name: "Test Suite: Installer"
-        run: |
-          export PS4='+ '
+        run: make cov-inst
 
-          # FIX: Use $(pwd) to force absolute paths
-          OUTPUT_DIR="$(pwd)/.coverage/installer"
-
-          mkdir -p "$OUTPUT_DIR"
-          chmod +x ./tests/test-install-logic.sh
-
-          kcov --bash-handle-sh-invocation \
-               --include-pattern=install.sh \
-               --exclude-path=.git,tests \
-               "$OUTPUT_DIR" \
-               ./tests/test-install-logic.sh
-
-      # --- SUITE 2: CORE APPLICATION (Placeholder) ---
-      - name: "Test Suite: Core System"
-        run: |
-          export PS4='+ '
-
-          # FIX: Create the placeholder directory so Upload step doesn't fail
-          mkdir -p .coverage/core
-
-          # (Uncomment when you have the system test ready)
-          # chmod +x ./tests/test-system.sh
-          # kcov ... .coverage/core ./tests/test-system.sh
-
-      # --- GENERATE DELTA CONFIG ---
-      - name: Create Codecov Config
-        run: |
-          cat <<EOF > codecov.yml
-          coverage:
-            status:
-              project:
-                default:
-                  target: auto
-                  threshold: 1%
-              # You can even enforce different rules for core vs installer!
-              patch:
-                default:
-                  target: 100%
-                  threshold: 0%
-          flag_management:
-            default_rules:
-              carryforward: true
-          EOF
+      # --- SUITE 2: SYSTEM ---
+      - name: "Test Suite: System"
+        run: make cov-sys
 
       # --- UPLOAD ---
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./coverage
-          fail_ci_if_error: true
-          verbose: true
+          # Path changed to match your Makefile's COV_ROOT (.coverage)
+          directory: ./.coverage
