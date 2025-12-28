@@ -3,7 +3,6 @@ set -u
 
 # 1. Setup Sandbox
 SANDBOX=$(mktemp -d)
-REPO_ROOT=$(pwd)
 trap 'rm -rf "$SANDBOX"' EXIT
 
 echo "Running install logic tests in $SANDBOX..."

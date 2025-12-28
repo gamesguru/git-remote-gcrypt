@@ -12,10 +12,9 @@ random_data_per_file=1024 # Reduced size for faster testing (1KB)
 default_branch="main"
 test_user_name="git-remote-gcrypt"
 test_user_email="git-remote-gcrypt@example.com"
-pack_size_limit="12m"
 
 readonly num_commits files_per_commit random_source random_data_per_file \
-    default_branch test_user_name test_user_email pack_size_limit
+    default_branch test_user_name test_user_email
 
 # ----------------- Helper Functions -----------------
 indent() {
