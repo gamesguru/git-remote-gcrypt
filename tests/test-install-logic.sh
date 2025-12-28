@@ -66,8 +66,12 @@ mkdir -p debian
 echo "git-remote-gcrypt (5.5.5-1) unstable; urgency=low" >debian/changelog
 
 # Load ID from system to know what the installer will append
-if [ -f /etc/os-release ]; then source /etc/os-release; fi
-EXPECTED_TAG="5.5.5-1 (debian_${ID:-unknown})"
+if [ -f /etc/os-release ]; then
+	source /etc/os-release
+fi
+
+# This must match the installer's string exactly
+EXPECTED_TAG="5.5.5-1 (deb running on $ID)"
 
 assert_version "$EXPECTED_TAG"
 

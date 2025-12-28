@@ -22,4 +22,30 @@ if [[ "$OUTPUT" == *"@@DEV_VERSION@@"* ]]; then
 	exit 1
 fi
 
-echo "✅ SUCCESS: Installed version is: $OUTPUT"
+# 4. Determine expected ID for comparison to actual
+if [ -f /etc/os-release ]; then
+	source /etc/os-release
+	EXPECTED_ID=$ID
+elif command -v uname >/dev/null; then
+	EXPECTED_ID=$(uname -s | tr '[:upper:]' '[:lower:]')
+else
+	EXPECTED_ID="unknown_OS"
+fi
+
+if [[ "$OUTPUT" != *"(deb running on $EXPECTED_ID)"* ]]; then
+	echo "❌ ERROR: Distro ID '$EXPECTED_ID' missing from version string! (Got: $OUTPUT)"
+	exit 1
+fi
+
+# LEAD with the version success
+echo "✅ VERSION OK: $OUTPUT"
+
+# 5. Verify the man page
+if man -w git-remote-gcrypt >/dev/null 2>&1; then
+	echo "✅ DOCS OK: Man page is installed and indexed."
+else
+	echo "❌ ERROR: Man page not found in system paths."
+	exit 1
+fi
+
+echo "🚀 INSTALLATION VERIFIED"

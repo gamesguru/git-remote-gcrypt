@@ -3,49 +3,56 @@ name: CI
 
 "on": push
 
-permissions:
-  contents: read
-
 jobs:
-  install-deb:
-    runs-on: [ubuntu-latest]
+  # Handles Ubuntu and macOS
+  install-unix:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Test Installer Logic
-        run: bash ./tests/test-install-logic.sh
+      - name: Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y git python3-docutils
 
-      - name: Verify OS Version [debian]
-        run: grep 'ID_LIKE=debian' /etc/os-release
+      - name: Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install coreutils python3 git
+          brew install coreutils python3 git docutils
 
-      - name: Install script [debian]
-        run: sudo ./install.sh
+      - name: Pre-test
+        run: make inst/pretest
 
-      - name: Test Install & Script Version [redhat]
-        run: bash ./tests/verify-system-install.sh
+      - name: Install
+        run: sudo make install # TODO: is sudo needed here?
 
+      - name: Verify
+        run: make inst/verify
+
+  # Handles RedHat (UBI Container)
   install-rh:
     runs-on: ubuntu-latest
-    container: # RedHat test on GitHub needs docker container
+
+    container:
       image: registry.access.redhat.com/ubi9/ubi:latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Test Installer Logic
-        run: bash ./tests/test-install-logic.sh
+      - name: Dependencies [redhat]
+        run: dnf install -y git python3-docutils make
 
-      - name: Verify OS Version [redhat]
-        run: cat /etc/redhat-release
+      - name: Pre-test
+        run: make inst/pretest
 
-      - name: Install System Dependencies [redhat]
-        run: dnf install -y git python3-docutils
+      - name: Install
+        run: make install
 
-      - name: Install script [redhat]
-        run: ./install.sh
-
-      - name: Test Install & Script Version [redhat]
-        run: bash ./tests/verify-system-install.sh
+      - name: Verify
+        run: make inst/verify

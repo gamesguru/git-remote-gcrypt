@@ -54,11 +54,11 @@ jobs:
 
       # --- SUITE 1: INSTALLER ---
       - name: "Test Suite: Installer"
-        run: make cov-inst
+        run: make cov/inst
 
       # --- SUITE 2: SYSTEM ---
       - name: "Test Suite: System"
-        run: make cov-sys
+        run: make cov/sys
 
       # --- UPLOAD ---
       - name: Upload to Codecov

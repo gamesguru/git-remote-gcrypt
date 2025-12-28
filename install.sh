@@ -14,16 +14,19 @@ install_v() {
 
 # --- VERSION DETECTION ---
 if [ -f /etc/os-release ]; then
+	# Linux
 	source /etc/os-release
+	OS_IDENTIFIER=$ID
+elif command -v uname >/dev/null; then
+	# Fallback for macOS/BSD
+	OS_IDENTIFIER=$(uname -s | tr '[:upper:]' '[:lower:]')
+else
+	OS_IDENTIFIER="unknown_OS"
 fi
 
-# We use the Debian changelog as the single source of truth for the project version.
-if [ -f debian/changelog ]; then
-	VERSION=$(head -n 1 debian/changelog | cut -d ' ' -f 2 | tr -d '()')" (debian_$ID)"
-else
-	echo "❌ ERROR: debian/changelog not found. Cannot determine @@DEV_VERSION@@." >&2
-	exit 1
-fi
+# Get base version then append OS identifier
+VERSION=$(grep ^git-remote-gcrypt debian/changelog | head -1 | awk '{print $2}' | tr -d '()')
+VERSION="$VERSION (deb running on $OS_IDENTIFIER)"
 
 echo "Detected version: $VERSION"
 
