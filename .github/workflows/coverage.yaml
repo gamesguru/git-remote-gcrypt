@@ -11,14 +11,30 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # 1. Setup Cache for kcov
+      - name: Cache kcov
+        id: cache-kcov
+        uses: actions/cache@v4
+        with:
+          # We cache the directory where we will install kcov
+          path: /usr/local/bin/kcov
+          # The key uses the OS and a manual version number (v1).
+          # Change 'v1' to 'v2' if you ever need to force a rebuild.
+          key: ${{ runner.os }}-kcov-v1
+
+      # 2. Install Dependencies (ONLY if cache miss)
+      # We skip apt-get entirely if we already have the binary!
       - name: Install kcov Dependencies
+        if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y binutils-dev build-essential cmake git \
           libssl-dev libcurl4-openssl-dev libelf-dev libdw-dev \
           libiberty-dev zlib1g-dev libstdc++-12-dev
 
+      # 3. Build kcov (ONLY if cache miss)
       - name: Build and Install kcov
+        if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
           git clone https://github.com/SimonKagstrom/kcov.git
           cd kcov
@@ -27,21 +43,28 @@ jobs:
           make -j$(nproc)
           sudo make install
 
+      # 4. Permissions check (Always run)
+      # If restored from cache, we ensure it's executable
+      - name: Check kcov installation
+        run: |
+          ls -l /usr/local/bin/kcov || echo "Kcov not found!"
+          kcov --version
+
       # --- SUITE 1: INSTALLER ---
       - name: "Test Suite: Installer"
         run: |
           export PS4='+ '
 
-          # FIX: Manually create the output directory first
-          mkdir -p coverage/installer
+          # FIX: Use $(pwd) to force absolute paths
+          OUTPUT_DIR="$(pwd)/coverage/installer"
 
-          # FIX: Ensure the test script is executable
+          mkdir -p "$OUTPUT_DIR"
           chmod +x ./tests/test-install-logic.sh
 
           kcov --bash-handle-sh-invocation \
                --include-pattern=install.sh \
                --exclude-path=.git,tests \
-               coverage/installer \
+               "$OUTPUT_DIR" \
                ./tests/test-install-logic.sh
 
       # --- SUITE 2: CORE APPLICATION (Placeholder) ---
