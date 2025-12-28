@@ -53,7 +53,7 @@ export PATH
 
 # Clean GIT environment
 git_env=$(env | sed -n 's/^\(GIT_[^=]*\)=.*$/\1/p')
-IFS=$'\n' unset ${git_env}
+IFS=$'\n' unset "${git_env}"
 
 # GPG Setup
 export GNUPGHOME="${tempdir}/gpg"

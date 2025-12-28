@@ -1,8 +1,8 @@
 #!/bin/bash
 set -efuC -o pipefail
 
-: ${prefix:=/usr/local}
-: ${DESTDIR:=}
+: "${prefix:=/usr/local}"
+: "${DESTDIR:=}"
 
 verbose() { echo "$@" >&2 && "$@"; }
 
@@ -51,7 +51,7 @@ fi
 if [ -n "$rst2man" ]; then
 	# Update trap to clean up manpage too
 	trap 'rm -rf "$BUILD_DIR"; rm -f git-remote-gcrypt.1.gz' EXIT
-	verbose $rst2man ./README.rst | gzip -9 >git-remote-gcrypt.1.gz
+	verbose "$rst2man" ./README.rst | gzip -9 >git-remote-gcrypt.1.gz
 	install_v git-remote-gcrypt.1.gz "$DESTDIR$prefix/share/man/man1" 644
 else
 	echo "'rst2man' not found, man page not installed" >&2
