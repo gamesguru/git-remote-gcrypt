@@ -103,7 +103,7 @@ key_fps=()
 ) 2>&1 | indent
 
 # Capture fingerprints
-key_fps=($(gpg --list-keys --with-colons | grep "^fpr" | cut -d: -f10))
+mapfile -t key_fps < <(gpg --list-keys --with-colons | grep "^fpr" | cut -d: -f10)
 echo "Generated keys: ${key_fps[*]}" | indent
 
 ###
