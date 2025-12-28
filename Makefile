@@ -8,70 +8,87 @@ _help:
 	@printf "\nUsage: make <command>, valid commands:\n\n"
 	@grep -h "##H" $(MAKEFILE_LIST) | grep -v IGNORE_ME | sed -e 's/##H//' | column -t -s $$'\t'
 
-#.PHONY: test
-#test:
-## 	kcov --include-path=./git-remote-gcrypt .kcov/ ./tests/system-test*.sh
-## 	kcov --exclude-path=$(pwd)/.git,$(pwd)/debian,$(pwd)/tests \
-## 		coverage_dir
-## 		./tests/system-test-multikey.sh
-#	kcov --include-path=$(pwd) --exclude-path=$(pwd)/.git,$(pwd)/debian,$(pwd)/tests \
-#		.kcov ./tests/system-test.sh
-#	kcov --include-path=$(pwd) --exclude-path=$(pwd)/.git,$(pwd)/debian,$(pwd)/tests \
-#		--merge .kcov ./tests/system-test-multikey.sh
-
-
-#.PHONY: clean
-#clean:
-#	rm -rf .kcov/*
-
-# NEW ~~~~~~~~~~~~
-# Makefile for git-remote-gcrypt coverage (Local/Non-Docker)
-
-# Get absolute path to avoid LD_PRELOAD errors
+# Absolute path to avoid LD_PRELOAD errors
 PWD := $(shell pwd)
-COVERAGE_DIR := $(PWD)/.coverage/installer
-TEST_SCRIPT := ./tests/test-install-logic.sh
+# Output directories inside .coverage/
+COV_ROOT    := $(PWD)/.coverage
+COV_INSTALL := $(COV_ROOT)/installer
+COV_SYSTEM  := $(COV_ROOT)/system
 
-.PHONY: coverage clean open check-deps install-deps
+.PHONY: coverage
+coverage: coverage-install coverage-system	##H Run full coverage suite (Installer + System)
+	@echo "📊 Full coverage suite complete."
+	@echo "   Installer: file://$(COV_INSTALL)/index.html"
+	@echo "   System:    file://$(COV_SYSTEM)/index.html"
 
-coverage: check-deps
-	@echo "🚀 Preparing coverage directory..."
-	@mkdir -p $(COVERAGE_DIR)
-
-	@echo "🧪 Running kcov locally..."
-	@# We use $(PWD) for the output to ensure LD_PRELOAD works correctly
+.PHONY: coverage-install
+coverage-install: check-deps	##H Run installer logic tests only
+	@echo "🚀 [Installer] Preparing coverage..."
+	@mkdir -p $(COV_INSTALL)
+	@echo "🧪 Running kcov on install.sh..."
 	@kcov --bash-handle-sh-invocation \
 	     --include-pattern=install.sh \
 	     --exclude-path=.git,tests \
-	     $(COVERAGE_DIR) \
-	     $(TEST_SCRIPT)
+	     $(COV_INSTALL) \
+	     ./tests/test-install-logic.sh
+	@echo "✅ [Installer] Done."
 
-	@echo "✅ Done! Report generated at:"
-	@echo "   file://$(COVERAGE_DIR)/index.html"
+.PHONY: coverage-system
+coverage-system: check-deps	##H Run core system tests (system-test.sh & multikey)
+	@echo "🚀 [System] Preparing coverage..."
+	@mkdir -p $(COV_SYSTEM)
 
-# Helper to check if tools are installed
-check-deps:
+	@# Run Main System Test
+	@if [ -f "./tests/system-test.sh" ]; then \
+		echo "🧪 Running kcov on system-test.sh..."; \
+		chmod +x ./tests/system-test.sh; \
+		kcov --bash-handle-sh-invocation \
+		     --include-pattern=git-remote-gcrypt \
+		     --exclude-path=.git,tests \
+		     $(COV_SYSTEM) \
+		     ./tests/system-test.sh; \
+	else \
+		echo "⚠️  [System] ./tests/system-test.sh not found."; \
+	fi
+
+	@# Run Multikey System Test
+	@if [ -f "./tests/system-test-multikey.sh" ]; then \
+		echo "🧪 Running kcov on system-test-multikey.sh..."; \
+		chmod +x ./tests/system-test-multikey.sh; \
+		kcov --bash-handle-sh-invocation \
+		     --include-pattern=git-remote-gcrypt \
+		     --exclude-path=.git,tests \
+		     $(COV_SYSTEM) \
+		     ./tests/system-test-multikey.sh; \
+	fi
+	@echo "✅ [System] Done."
+
+.PHONY: check-deps
+check-deps:	##H Verify kcov and rst2man are installed
 	@command -v kcov >/dev/null 2>&1 || { echo "❌ Error: 'kcov' is not installed."; exit 1; }
 	@command -v rst2man >/dev/null 2>&1 || command -v rst2man.py >/dev/null 2>&1 || { \
-		echo "⚠️  Warning: 'rst2man' (python3-docutils) is missing."; \
-		echo "   You won't hit the 'Happy Path' for man page generation (lines 50-52)."; \
-		echo "   Install it to see 100% coverage."; \
+		echo "⚠️  Warning: 'rst2man' is missing. You won't hit 100% on installer tests."; \
 	}
 
-# Helper to install dependencies on Ubuntu/Debian
-install-deps:
+.PHONY: install-deps
+install-deps:	##H Install dependencies (Ubuntu/Debian)
 	sudo apt-get update
 	sudo apt-get install -y kcov python3-docutils
 
-# Helper to open the report
-open:
+.PHONY: open
+open:	##H Open the HTML reports in browser
+	@echo "Opening reports..."
 	@if [ "$$(uname)" = "Darwin" ]; then \
-		open $(COVERAGE_DIR)/index.html; \
+		[ -f $(COV_INSTALL)/index.html ] && open $(COV_INSTALL)/index.html; \
+		[ -f $(COV_SYSTEM)/index.html ] && open $(COV_SYSTEM)/index.html; \
 	elif [ -n "$$WSL_DISTRO_NAME" ]; then \
-		explorer.exe `wslpath -w $(COVERAGE_DIR)/index.html`; \
+		[ -f $(COV_INSTALL)/index.html ] && explorer.exe `wslpath -w $(COV_INSTALL)/index.html`; \
+		[ -f $(COV_SYSTEM)/index.html ] && explorer.exe `wslpath -w $(COV_SYSTEM)/index.html`; \
 	else \
-		xdg-open $(COVERAGE_DIR)/index.html; \
+		[ -f $(COV_INSTALL)/index.html ] && xdg-open $(COV_INSTALL)/index.html; \
+		[ -f $(COV_SYSTEM)/index.html ] && xdg-open $(COV_SYSTEM)/index.html; \
 	fi
 
-clean:
+.PHONY: clean
+clean:	##H Remove .coverage artifacts
 	rm -rf .coverage
