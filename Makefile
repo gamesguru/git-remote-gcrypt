@@ -1,3 +1,4 @@
+.ONESHELL:
 SHELL:=/bin/bash
 .DEFAULT_GOAL := _help
 
@@ -32,22 +33,18 @@ cov-sys: check-deps	##H Run all system tests (Standard, Multi-key, Failures)
 	@echo "👉 Run 'make missed' to see which lines are not covered."
 
 .PHONY: missed
-missed:	##H Print list of missing lines to terminal (wrapped)
+missed:	##H Show missing/uncovered lines
 	@echo "🔍 Analyzing coverage for git-remote-gcrypt..."
 	@XML_FILE=$$(find $(COV_SYSTEM) -name "cobertura.xml" | grep "merged" | head -n 1); \
-	if [ -z "$$XML_FILE" ]; then \
-		XML_FILE=$$(find $(COV_SYSTEM) -name "cobertura.xml" | head -n 1); \
-	fi; \
+	[ -z "$$XML_FILE" ] && XML_FILE=$$(find $(COV_SYSTEM) -name "cobertura.xml" | head -n 1); \
 	if [ -f "$$XML_FILE" ]; then \
 		echo "📄 Using data from: $$XML_FILE"; \
 		python3 -c "import xml.etree.ElementTree as E, textwrap; \
-		T=E.parse('$$XML_FILE'); \
-		R=T.getroot(); \
-		files = [c for c in R.findall(\".//class\") if 'git-remote-gcrypt' in c.get('filename')]; \
-		print(f'Found {len(files)} file entries.'); \
-		[print(f'\n❌ MISSING LINES in {c.get(\"filename\")}:\n' + textwrap.fill(', '.join([l.get(\"number\") for l in c.findall(\".//line\") if l.get(\"hits\") == \"0\"]), width=72, subsequent_indent='  ')) for c in files]"; \
+		m = [l.get('number') for c in E.parse('$$XML_FILE').findall('.//class') if 'git-remote-gcrypt' in c.get('filename') for l in c.findall('.//line') if l.get('hits') == '0']; \
+		print(f'\n❌ \033[1m{len(m)} MISSING LINES\033[0m:'); \
+		print(textwrap.fill(', '.join(m), width=72, initial_indent='  ', subsequent_indent='  '))"; \
 	else \
-		echo "❌ Error: 'cobertura.xml' not found. kcov might not have generated it."; \
+		echo "❌ Error: 'cobertura.xml' not found."; \
 	fi
 
 .PHONY: cov-inst
