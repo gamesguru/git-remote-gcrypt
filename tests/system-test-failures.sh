@@ -9,7 +9,7 @@ section_break() { echo; printf '*%.0s' {1..70}; echo $'\n'; }
 
 umask 077
 tempdir=$(mktemp -d)
-trap "rm -Rf -- '${tempdir}'" EXIT
+trap 'rm -Rf -- "${tempdir}"' EXIT
 
 # Setup PATH to use the wrapper/local script
 PATH=$(git rev-parse --show-toplevel):${PATH}

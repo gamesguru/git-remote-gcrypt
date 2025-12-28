@@ -6,7 +6,7 @@ shopt -s inherit_errexit
 # ----------------- Setup -----------------
 indent() { sed 's/^\(.*\)$/    \1/'; }
 tempdir=$(mktemp -d)
-trap "rm -Rf -- '${tempdir}'" EXIT
+trap 'rm -Rf -- "${tempdir}"' EXIT
 
 PATH=$(git rev-parse --show-toplevel):${PATH}
 export PATH

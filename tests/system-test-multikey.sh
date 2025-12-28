@@ -44,7 +44,7 @@ fastfail() {
 umask 077
 tempdir=$(mktemp -d)
 readonly tempdir
-trap "rm -Rf -- '${tempdir}'" EXIT
+trap 'rm -Rf -- "${tempdir}"' EXIT
 
 # Setup PATH to use local git-remote-gcrypt
 PATH=$(git rev-parse --show-toplevel):${PATH}
