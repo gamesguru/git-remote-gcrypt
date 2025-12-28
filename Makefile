@@ -12,14 +12,11 @@ _help:
 	@grep -h "##H" $(MAKEFILE_LIST) | grep -v IGNORE_ME | sed -e 's/##H//' | column -t -s $$'\t'
 
 .PHONY: cov-sys
-cov-sys: check-deps	##H Run system tests (Main logic & Multi-key)
+cov-sys: check-deps	##H Run all system tests (Standard, Multi-key, Failures)
 	@echo "🚀 [System] Preparing coverage..."
 	@rm -rf $(COV_SYSTEM)
 	@mkdir -p $(COV_SYSTEM)
 
-	@# 1. GPG_TTY: Tells GPG "I have a terminal" (prevents basic hangs).
-	@# 2. GIT_CONFIG_PARAMETERS: Injects '--pinentry-mode loopback' via Git config.
-	@#    This fixes the Step 5 hang by making GPG fail fast on missing keys.
 	@export GPG_TTY=$$(tty); \
 	 export GIT_CONFIG_PARAMETERS="'gcrypt.gpg-args=--pinentry-mode loopback --no-tty'"; \
 	 for test_script in tests/system-test*.sh; do \
@@ -32,32 +29,55 @@ cov-sys: check-deps	##H Run system tests (Main logic & Multi-key)
 	 done
 
 	@echo "✅ [System] Done. Report: file://$(COV_SYSTEM)/index.html"
+	@echo "👉 Run 'make missed' to see which lines are not covered."
+
+.PHONY: missed
+missed:	##H Print list of missing lines to terminal
+	@echo "🔍 analyzing coverage for git-remote-gcrypt..."
+	@if [ -f "$(COV_SYSTEM)/cobertura.xml" ]; then \
+		python3 -c "import xml.etree.ElementTree as E, sys; T=E.parse('$(COV_SYSTEM)/cobertura.xml'); R=T.getroot(); [print(f'❌ MISSING LINES in {c.get(\"filename\")}:\n' + ', '.join([l.get(\"number\") for l in c.findall(\".//line\") if l.get(\"hits\") == \"0\"])) for c in R.findall(\".//class\") if 'git-remote-gcrypt' in c.get('filename')]"; \
+	else \
+		echo "❌ No coverage data found. Run 'make cov-sys' first."; \
+	fi
 
 .PHONY: cov-inst
 cov-inst: check-deps	##H Run installer logic tests
 	@echo "🚀 [Installer] Preparing coverage..."
 	@rm -rf $(COV_INSTALL)
 	@mkdir -p $(COV_INSTALL)
-
-	@echo "🧪 Running test-install-logic.sh..."
-	@# We use --bash-handle-sh-invocation here because install.sh might still be /bin/sh
 	@kcov --bash-handle-sh-invocation \
 	     --include-pattern=install.sh \
 	     --exclude-path=$(PWD)/.git,$(PWD)/tests \
 	     $(COV_INSTALL) \
 	     ./tests/test-install-logic.sh
-
 	@echo "✅ [Installer] Done. Report: file://$(COV_INSTALL)/index.html"
 
 .PHONY: open
-open:	##H Open the coverage report (System by default)
-	@# Tries System first, then Installer
+open:	##H Open the coverage report in browser
 	@if [ -f "$(COV_SYSTEM)/index.html" ]; then \
 		xdg-open "$(COV_SYSTEM)/index.html" 2>/dev/null || open "$(COV_SYSTEM)/index.html"; \
-	elif [ -f "$(COV_INSTALL)/index.html" ]; then \
-		xdg-open "$(COV_INSTALL)/index.html" 2>/dev/null || open "$(COV_INSTALL)/index.html"; \
+	fi
+
+.PHONY: missed
+missed:	##H Print list of missing lines to terminal
+	@echo "🔍 Analyzing coverage for git-remote-gcrypt..."
+	@# 1. Find the XML file. We prefer 'kcov-merged' if it exists.
+	@XML_FILE=$$(find $(COV_SYSTEM) -name "cobertura.xml" | grep "merged" | head -n 1); \
+	if [ -z "$$XML_FILE" ]; then \
+		# Fallback: take any cobertura.xml we can find
+		XML_FILE=$$(find $(COV_SYSTEM) -name "cobertura.xml" | head -n 1); \
+	fi; \
+	\
+	if [ -f "$$XML_FILE" ]; then \
+		echo "📄 Using data from: $$XML_FILE"; \
+		python3 -c "import xml.etree.ElementTree as E; \
+		T=E.parse('$$XML_FILE'); \
+		R=T.getroot(); \
+		files = [c for c in R.findall(\".//class\") if 'git-remote-gcrypt' in c.get('filename')]; \
+		print(f'Found {len(files)} file entries.'); \
+		[print(f'\n❌ MISSING LINES in {c.get(\"filename\")}:\n' + ', '.join([l.get(\"number\") for l in c.findall(\".//line\") if l.get(\"hits\") == \"0\"])) for c in files]"; \
 	else \
-		echo "❌ No reports found. Run 'make cov-sys' or 'make cov-inst' first."; \
+		echo "❌ Error: 'cobertura.xml' not found. kcov might not have generated it."; \
 	fi
 
 .PHONY: check-deps
@@ -65,5 +85,5 @@ check-deps:	##H Check for kcov
 	@command -v kcov >/dev/null 2>&1 || { echo "❌ Error: 'kcov' is not installed."; exit 1; }
 
 .PHONY: clean
-clean:	##H Clean artifacts
+clean: ##H Clean artifacts
 	rm -rf .coverage
