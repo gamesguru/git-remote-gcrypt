@@ -1,8 +1,5 @@
 #!/bin/bash
-
-set -uo pipefail
-# set -e
-# set -x
+set -u
 
 function log {
 	echo "gcrypt-install-test: $*"
