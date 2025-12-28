@@ -32,7 +32,7 @@ cov-sys: check-deps	##H Run all system tests (Standard, Multi-key, Failures)
 	@echo "👉 Run 'make missed' to see which lines are not covered."
 
 .PHONY: missed
-missed:	##H Print list of missing lines to terminal
+missed:	##H Print list of missing lines to terminal (wrapped)
 	@echo "🔍 Analyzing coverage for git-remote-gcrypt..."
 	@XML_FILE=$$(find $(COV_SYSTEM) -name "cobertura.xml" | grep "merged" | head -n 1); \
 	if [ -z "$$XML_FILE" ]; then \
@@ -40,12 +40,12 @@ missed:	##H Print list of missing lines to terminal
 	fi; \
 	if [ -f "$$XML_FILE" ]; then \
 		echo "📄 Using data from: $$XML_FILE"; \
-		python3 -c "import xml.etree.ElementTree as E; \
+		python3 -c "import xml.etree.ElementTree as E, textwrap; \
 		T=E.parse('$$XML_FILE'); \
 		R=T.getroot(); \
 		files = [c for c in R.findall(\".//class\") if 'git-remote-gcrypt' in c.get('filename')]; \
 		print(f'Found {len(files)} file entries.'); \
-		[print(f'\n❌ MISSING LINES in {c.get(\"filename\")}:\n' + ', '.join([l.get(\"number\") for l in c.findall(\".//line\") if l.get(\"hits\") == \"0\"])) for c in files]"; \
+		[print(f'\n❌ MISSING LINES in {c.get(\"filename\")}:\n' + textwrap.fill(', '.join([l.get(\"number\") for l in c.findall(\".//line\") if l.get(\"hits\") == \"0\"]), width=72, subsequent_indent='  ')) for c in files]"; \
 	else \
 		echo "❌ Error: 'cobertura.xml' not found. kcov might not have generated it."; \
 	fi
