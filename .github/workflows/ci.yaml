@@ -23,7 +23,7 @@ jobs:
       - name: Install script [debian]
         run: sudo ./install.sh
 
-      - name: Test - install script & versioning [debian]
+      - name: Test Install & Script Version [redhat]
         run: bash ./tests/verify-system-install.sh
 
   install-rh:
@@ -47,5 +47,5 @@ jobs:
       - name: Install script [redhat]
         run: ./install.sh
 
-      - name: Test - install script & versioning [redhat]
+      - name: Test Install & Script Version [redhat]
         run: bash ./tests/verify-system-install.sh
