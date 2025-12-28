@@ -30,7 +30,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y binutils-dev build-essential cmake git \
           libssl-dev libcurl4-openssl-dev libelf-dev libdw-dev \
-          libiberty-dev zlib1g-dev libstdc++-12-dev
+          libiberty-dev zlib1g-dev libstdc++-12-dev \
+          python3-docutils
+          # python3-docutils enables rst2man
 
       # 3. Build kcov (ONLY if cache miss)
       - name: Build and Install kcov
@@ -79,7 +81,7 @@ jobs:
           # chmod +x ./tests/test-system.sh
           # kcov ... coverage/core ./tests/test-system.sh
 
-      # --- GENERATE CONFIG ---
+      # --- GENERATE DELTA CONFIG ---
       - name: Create Codecov Config
         run: |
           cat <<EOF > codecov.yml
@@ -100,10 +102,8 @@ jobs:
           EOF
 
       # --- UPLOAD ---
-      # We upload the parent 'coverage' folder.
-      # Codecov recursively finds all reports inside (installer/ and core/).
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage
