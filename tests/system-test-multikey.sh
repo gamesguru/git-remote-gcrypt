@@ -158,8 +158,7 @@ echo "Step 5: Unhappy Path - Test clone with NO matching keys..."
     # We expect this to FAIL
     (
         set +e
-        git clone -b "${default_branch}" "gcrypt::${tempdir}/second.git#${default_branch}" -- "${tempdir}/fail_test"
-        if [ $? -eq 0 ]; then
+        if git clone -b "${default_branch}" "gcrypt::${tempdir}/second.git#${default_branch}" -- "${tempdir}/fail_test"; then
              echo "ERROR: Clone succeeded unexpectedly with empty keyring!"
              exit 1
         fi

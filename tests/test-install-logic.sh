@@ -12,7 +12,7 @@ echo "Running install logic tests in $SANDBOX..."
 cp git-remote-gcrypt "$SANDBOX"
 cp README.rst "$SANDBOX" 2>/dev/null || touch "$SANDBOX/README.rst"
 cp install.sh "$SANDBOX"
-cd "$SANDBOX"
+cd "$SANDBOX" || exit 2
 
 # Ensure source binary has the placeholder for sed to work on
 # If your local git-remote-gcrypt already has a real version, sed won't find the tag
