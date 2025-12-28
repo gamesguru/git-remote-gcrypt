@@ -1,5 +1,12 @@
 SHELL:=/bin/bash
-#.DEFAULT_GOAL=_help
+.DEFAULT_GOAL := _help
+
+# NOTE: must put a <TAB> character and two pound with an "H",
+#       i.e., "\t##H" to show up in this list.  Keep it brief! IGNORE_ME
+.PHONY: _help
+_help:
+	@printf "\nUsage: make <command>, valid commands:\n\n"
+	@grep -h "##H" $(MAKEFILE_LIST) | grep -v IGNORE_ME | sed -e 's/##H//' | column -t -s $$'\t'
 
 #.PHONY: test
 #test:
@@ -27,7 +34,6 @@ TEST_SCRIPT := ./tests/test-install-logic.sh
 
 .PHONY: coverage clean open check-deps install-deps
 
-# Default target: Run coverage
 coverage: check-deps
 	@echo "🚀 Preparing coverage directory..."
 	@mkdir -p $(COVERAGE_DIR)
