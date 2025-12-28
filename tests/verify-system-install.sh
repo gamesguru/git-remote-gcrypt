@@ -24,6 +24,7 @@ fi
 
 # 4. Determine expected ID for comparison to actual
 if [ -f /etc/os-release ]; then
+	# shellcheck source=/dev/null
 	source /etc/os-release
 	EXPECTED_ID=$ID
 elif command -v uname >/dev/null; then

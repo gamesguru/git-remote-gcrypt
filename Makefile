@@ -85,7 +85,7 @@ inst/verify:	##H Verify install and version
 
 .PHONY: lint
 lint:
-	shellcheck -x install.sh tests/*.sh
+	shellcheck install.sh tests/*.sh
 
 
 .PHONY: check-deps

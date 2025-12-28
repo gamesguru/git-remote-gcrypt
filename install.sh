@@ -14,11 +14,11 @@ install_v() {
 
 # --- VERSION DETECTION ---
 if [ -f /etc/os-release ]; then
-	# Linux
+	# shellcheck source=/dev/null
 	source /etc/os-release
-	OS_IDENTIFIER=$ID
+	OS_IDENTIFIER=$ID  # Linux
 elif command -v uname >/dev/null; then
-	# Fallback for macOS/BSD
+	# Fallback for macOS/BSD (darwin)
 	OS_IDENTIFIER=$(uname -s | tr '[:upper:]' '[:lower:]')
 else
 	OS_IDENTIFIER="unknown_OS"

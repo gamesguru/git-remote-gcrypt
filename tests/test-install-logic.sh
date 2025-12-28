@@ -67,6 +67,7 @@ echo "git-remote-gcrypt (5.5.5-1) unstable; urgency=low" >debian/changelog
 
 # Determine the OS identifier for the test expectation
 if [ -f /etc/os-release ]; then
+	# shellcheck source=/dev/null
 	source /etc/os-release
 	OS_IDENTIFIER="$ID"
 elif command -v uname >/dev/null; then
