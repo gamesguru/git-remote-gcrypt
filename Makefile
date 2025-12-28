@@ -67,19 +67,25 @@ cov/missed:	##H Show missing lines for all coverage reports
 
 
 
+.PHONY: inst/pretest
+inst/pretest:	##H Run installer logic pre-tests
+	bash ./tests/test-install-logic.sh
+
+
 .PHONY: install
 install:	##H Install the tool
 	./install.sh
 
 
-.PHONY: inst/pretest
-inst/pretest:	##H Run installer logic tests
-	bash ./tests/test-install-logic.sh
-
-
 .PHONY: inst/verify
 inst/verify:	##H Verify install and version
 	bash ./tests/verify-system-install.sh
+
+
+
+.PHONY: lint
+lint:
+	shellcheck install.sh tests/*.sh
 
 
 .PHONY: check-deps

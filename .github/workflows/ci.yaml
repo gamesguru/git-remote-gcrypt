@@ -75,4 +75,4 @@ jobs:
 
       - name: Run ShellCheck
         continue-on-error: true
-        run: shellcheck install.sh tests/*.sh
+        run: make lint

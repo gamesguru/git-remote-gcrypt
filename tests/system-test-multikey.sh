@@ -104,7 +104,7 @@ key_fps=()
 
 # Capture fingerprints
 key_fps=($(gpg --list-keys --with-colons | grep "^fpr" | cut -d: -f10))
-echo "Generated keys: ${key_fps[@]}" | indent
+echo "Generated keys: ${key_fps[*]}" | indent
 
 ###
 section_break
