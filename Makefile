@@ -33,11 +33,21 @@ cov-sys: check-deps	##H Run all system tests (Standard, Multi-key, Failures)
 
 .PHONY: missed
 missed:	##H Print list of missing lines to terminal
-	@echo "🔍 analyzing coverage for git-remote-gcrypt..."
-	@if [ -f "$(COV_SYSTEM)/cobertura.xml" ]; then \
-		python3 -c "import xml.etree.ElementTree as E, sys; T=E.parse('$(COV_SYSTEM)/cobertura.xml'); R=T.getroot(); [print(f'❌ MISSING LINES in {c.get(\"filename\")}:\n' + ', '.join([l.get(\"number\") for l in c.findall(\".//line\") if l.get(\"hits\") == \"0\"])) for c in R.findall(\".//class\") if 'git-remote-gcrypt' in c.get('filename')]"; \
+	@echo "🔍 Analyzing coverage for git-remote-gcrypt..."
+	@XML_FILE=$$(find $(COV_SYSTEM) -name "cobertura.xml" | grep "merged" | head -n 1); \
+	if [ -z "$$XML_FILE" ]; then \
+		XML_FILE=$$(find $(COV_SYSTEM) -name "cobertura.xml" | head -n 1); \
+	fi; \
+	if [ -f "$$XML_FILE" ]; then \
+		echo "📄 Using data from: $$XML_FILE"; \
+		python3 -c "import xml.etree.ElementTree as E; \
+		T=E.parse('$$XML_FILE'); \
+		R=T.getroot(); \
+		files = [c for c in R.findall(\".//class\") if 'git-remote-gcrypt' in c.get('filename')]; \
+		print(f'Found {len(files)} file entries.'); \
+		[print(f'\n❌ MISSING LINES in {c.get(\"filename\")}:\n' + ', '.join([l.get(\"number\") for l in c.findall(\".//line\") if l.get(\"hits\") == \"0\"])) for c in files]"; \
 	else \
-		echo "❌ No coverage data found. Run 'make cov-sys' first."; \
+		echo "❌ Error: 'cobertura.xml' not found. kcov might not have generated it."; \
 	fi
 
 .PHONY: cov-inst
@@ -56,28 +66,6 @@ cov-inst: check-deps	##H Run installer logic tests
 open:	##H Open the coverage report in browser
 	@if [ -f "$(COV_SYSTEM)/index.html" ]; then \
 		xdg-open "$(COV_SYSTEM)/index.html" 2>/dev/null || open "$(COV_SYSTEM)/index.html"; \
-	fi
-
-.PHONY: missed
-missed:	##H Print list of missing lines to terminal
-	@echo "🔍 Analyzing coverage for git-remote-gcrypt..."
-	@# 1. Find the XML file. We prefer 'kcov-merged' if it exists.
-	@XML_FILE=$$(find $(COV_SYSTEM) -name "cobertura.xml" | grep "merged" | head -n 1); \
-	if [ -z "$$XML_FILE" ]; then \
-		# Fallback: take any cobertura.xml we can find
-		XML_FILE=$$(find $(COV_SYSTEM) -name "cobertura.xml" | head -n 1); \
-	fi; \
-	\
-	if [ -f "$$XML_FILE" ]; then \
-		echo "📄 Using data from: $$XML_FILE"; \
-		python3 -c "import xml.etree.ElementTree as E; \
-		T=E.parse('$$XML_FILE'); \
-		R=T.getroot(); \
-		files = [c for c in R.findall(\".//class\") if 'git-remote-gcrypt' in c.get('filename')]; \
-		print(f'Found {len(files)} file entries.'); \
-		[print(f'\n❌ MISSING LINES in {c.get(\"filename\")}:\n' + ', '.join([l.get(\"number\") for l in c.findall(\".//line\") if l.get(\"hits\") == \"0\"])) for c in files]"; \
-	else \
-		echo "❌ Error: 'cobertura.xml' not found. kcov might not have generated it."; \
 	fi
 
 .PHONY: check-deps
