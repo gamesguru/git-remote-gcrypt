@@ -20,21 +20,9 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y git python3-docutils
 
-      # --- macOS Optimized Block ---
-      - name: Cache Homebrew
-        if: runner.os == 'macOS'
-        id: cache-brew
-        uses: actions/cache@v4
-        with:
-          path: |
-            /opt/homebrew/Cellar
-            /usr/local/Cellar
-          key: ${{ runner.os }}-brew-v1
-
       - name: Dependencies (macOS)
-        if: runner.os == 'macOS' && steps.cache-brew.outputs.cache-hit != 'true'
-        run: brew install git coreutils docutils
-      # --- END macOS Block ---
+        if: runner.os == 'macOS'
+        run: brew install coreutils python3 git docutils
 
       - name: Pre-test
         run: make inst/pretest
@@ -75,3 +63,16 @@ jobs:
 
       - name: Verify
         run: make inst/verify
+
+  # Lint job (no-op currently)
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck
+        continue-on-error: true
+        run: shellcheck install.sh tests/*.sh
