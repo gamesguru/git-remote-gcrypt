@@ -65,13 +65,18 @@ echo "--- Test 2: Versioning from Changelog ---"
 mkdir -p debian
 echo "git-remote-gcrypt (5.5.5-1) unstable; urgency=low" >debian/changelog
 
-# Load ID from system to know what the installer will append
+# Determine the OS identifier for the test expectation
 if [ -f /etc/os-release ]; then
 	source /etc/os-release
+	OS_IDENTIFIER="$ID"
+elif command -v uname >/dev/null; then
+	OS_IDENTIFIER=$(uname -s | tr '[:upper:]' '[:lower:]')
+else
+	OS_IDENTIFIER="unknown_os"
 fi
 
-# This must match the installer's string exactly
-EXPECTED_TAG="5.5.5-1 (deb running on $ID)"
+# Use the identified OS for the expected string
+EXPECTED_TAG="5.5.5-1 (deb running on $OS_IDENTIFIER)"
 
 assert_version "$EXPECTED_TAG"
 

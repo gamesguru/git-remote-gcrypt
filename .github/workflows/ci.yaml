@@ -20,17 +20,27 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y git python3-docutils
 
-      - name: Dependencies (macOS)
+      # --- macOS Optimized Block ---
+      - name: Cache Homebrew
         if: runner.os == 'macOS'
-        run: |
-          brew install coreutils python3 git
-          brew install coreutils python3 git docutils
+        id: cache-brew
+        uses: actions/cache@v4
+        with:
+          path: |
+            /opt/homebrew/Cellar
+            /usr/local/Cellar
+          key: ${{ runner.os }}-brew-v1
+
+      - name: Dependencies (macOS)
+        if: runner.os == 'macOS' && steps.cache-brew.outputs.cache-hit != 'true'
+        run: brew install git coreutils docutils
+      # --- END macOS Block ---
 
       - name: Pre-test
         run: make inst/pretest
 
       - name: Install
-        run: sudo make install # TODO: is sudo needed here?
+        run: sudo make install
 
       - name: Verify
         run: make inst/verify
@@ -45,14 +55,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # dnf is slow in containers. We cache the dnf cache directory.
+      - name: Cache DNF
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/dnf
+          key: ${{ runner.os }}-ubi9-dnf-v1
+          restore-keys: |
+            ${{ runner.os }}-ubi9-dnf-
+
       - name: Dependencies [redhat]
-        run: dnf install -y git python3-docutils make
+        run: dnf install -y git python3-docutils make man-db
 
       - name: Pre-test
         run: make inst/pretest
 
       - name: Install
-        run: make install
+        run: make install # container runs as sudo
 
       - name: Verify
         run: make inst/verify
