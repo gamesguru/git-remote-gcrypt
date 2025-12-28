@@ -16,7 +16,7 @@ mkdir -p "${GNUPGHOME}"
 echo "no-tty" >> "$GNUPGHOME/gpg.conf"
 echo "pinentry-mode loopback" >> "$GNUPGHOME/gpg.conf"
 
-gpg --batch --passphrase "" --quick-generate-key "deep <deep@example.com>" 2>&1 >/dev/null
+gpg --batch --passphrase "" --quick-generate-key "deep <deep@example.com>" >/dev/null 2>&1
 key_fp=$(gpg --list-keys --with-colons | grep "^fpr" | head -n1 | cut -d: -f10)
 
 export GIT_CONFIG_GLOBAL="${tempdir}/gitconfig"
