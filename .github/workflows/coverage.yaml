@@ -58,7 +58,7 @@ jobs:
           export PS4='+ '
 
           # FIX: Use $(pwd) to force absolute paths
-          OUTPUT_DIR="$(pwd)/coverage/installer"
+          OUTPUT_DIR="$(pwd)/.coverage/installer"
 
           mkdir -p "$OUTPUT_DIR"
           chmod +x ./tests/test-install-logic.sh
@@ -75,11 +75,11 @@ jobs:
           export PS4='+ '
 
           # FIX: Create the placeholder directory so Upload step doesn't fail
-          mkdir -p coverage/core
+          mkdir -p .coverage/core
 
           # (Uncomment when you have the system test ready)
           # chmod +x ./tests/test-system.sh
-          # kcov ... coverage/core ./tests/test-system.sh
+          # kcov ... .coverage/core ./tests/test-system.sh
 
       # --- GENERATE DELTA CONFIG ---
       - name: Create Codecov Config
