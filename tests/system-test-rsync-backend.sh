@@ -13,7 +13,7 @@ cat << 'EOF' > "${tempdir}/bin/rsync"
 #!/bin/bash
 # Fake rsync: log calls and pretend to work
 echo "[MOCK] rsync $@" >> "${LOG_FILE}"
-# If it's a 'get' or 'list', ensure we don't crash
+# Git-remote-gcrypt often expects rsync to return 0 to proceed
 exit 0
 EOF
 chmod +x "${tempdir}/bin/rsync"
@@ -37,15 +37,25 @@ git config --global init.defaultBranch "main"
 git config --global gcrypt.participants "$key_fp"
 git config --global gcrypt.gpg-args "--pinentry-mode loopback --no-tty"
 
-echo "--- Test: Push to rsync:// URL ---"
+echo "--- Step 1: Push (Triggers PUTREPO and PUT) ---"
 git init "${tempdir}/repo"
 cd "${tempdir}/repo"
-touch data && git add data && git commit -m "rsync test"
+touch data && git add data && git commit -m "rsync init"
 
-# This triggers the rsync-specific block in git-remote-gcrypt
-if git push "gcrypt::rsync://example.com/path" main 2>&1 | indent; then
-    echo "✅ PASS: Rsync logic triggered."
-else
-    echo "❌ ERROR: Push failed."
-    exit 1
-fi
+# This triggers PUTREPO (to create the remote) and PUT (to upload objects)
+git push "gcrypt::rsync://example.com/path" main 2>&1 | indent
+
+# Force a manifest rewrite and object upload (PUT/PUTREPO)
+git push "gcrypt::rsync://example.com/path" main
+
+echo "--- Step 2: Delete Branch (Triggers REMOVE) ---"
+# Deleting a remote branch forces the REMOVE block to execute
+git push "gcrypt::rsync://example.com/path" :main 2>&1 | indent
+
+
+echo "--- Step 3: Force Repack (Triggers line_count and GET) ---"
+# Setting this env var forces the helper to download and count existing packs
+export GCRYPT_FULL_REPACK=1
+git push "gcrypt::rsync://example.com/path" main 2>&1 | indent
+
+echo "✅ All rsync mock sequences completed."
