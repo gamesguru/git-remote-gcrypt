@@ -1,0 +1,72 @@
+name: Coverage
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  test-coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # --- BUILD KCOV START ---
+      - name: Install kcov Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils-dev build-essential cmake git \
+          libssl-dev libcurl4-openssl-dev libelf-dev libdw-dev \
+          libiberty-dev zlib1g-dev libstdc++-12-dev
+
+      - name: Build and Install kcov
+        run: |
+          # 1. Clone the repo
+          git clone https://github.com/SimonKagstrom/kcov.git
+          cd kcov
+
+          # 2. Configure and Build
+          mkdir build && cd build
+          cmake ..
+          make -j$(nproc)
+
+          # 3. Install
+          sudo make install
+      # --- BUILD KCOV END ---
+
+      - name: Run Tests with kcov
+        run: |
+          # Ensure kcov handles bash PS4 quirk
+          export PS4='+ '
+          # kcov is now installed to /usr/local/bin/kcov by default
+          kcov --bash-handle-sh-invocation \
+               --include-pattern=install.sh \
+               --exclude-path=.git,.coverage,tests \
+               coverage_output \
+               ./tests/test-install-logic.sh
+
+      - name: Create Codecov Config
+        run: |
+          cat <<EOF > codecov.yml
+          coverage:
+            status:
+              project:
+                default:
+                  target: auto
+                  threshold: 1%
+              patch:
+                default:
+                  target: 100%
+                  threshold: 0%
+          EOF
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./coverage_output
+          fail_ci_if_error: true
+          verbose: true
