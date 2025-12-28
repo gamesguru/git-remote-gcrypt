@@ -1,10 +1,7 @@
+---
 name: Coverage
 
-on:
-  push:
-    branches: [ "master", "main" ]
-  pull_request:
-    branches: [ "master", "main" ]
+"on": push
 
 jobs:
   test-coverage:
@@ -14,7 +11,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # --- BUILD KCOV START ---
       - name: Install kcov Dependencies
         run: |
           sudo apt-get update
@@ -24,30 +20,40 @@ jobs:
 
       - name: Build and Install kcov
         run: |
-          # 1. Clone the repo
           git clone https://github.com/SimonKagstrom/kcov.git
           cd kcov
-
-          # 2. Configure and Build
           mkdir build && cd build
           cmake ..
           make -j$(nproc)
-
-          # 3. Install
           sudo make install
-      # --- BUILD KCOV END ---
 
-      - name: Run Tests with kcov
+      # --- SUITE 1: INSTALLER ---
+      - name: "Test Suite: Installer"
         run: |
-          # Ensure kcov handles bash PS4 quirk
           export PS4='+ '
-          # kcov is now installed to /usr/local/bin/kcov by default
           kcov --bash-handle-sh-invocation \
                --include-pattern=install.sh \
-               --exclude-path=.git,.coverage,tests \
-               coverage_output \
+               --exclude-path=.git,tests \
+               coverage/installer \
                ./tests/test-install-logic.sh
 
+      # --- SUITE 2: CORE APPLICATION (Placeholder) ---
+      - name: "Test Suite: Core System"
+        run: |
+          export PS4='+ '
+          # Future: strict system tests for the actual binary
+          # We output to a DIFFERENT directory (coverage/core)
+
+          # kcov --bash-handle-sh-invocation \
+          #      --include-pattern=git-remote-gcrypt \
+          #      --exclude-path=.git,tests \
+          #      coverage/core \
+          #      ./tests/test-system.sh
+
+          # Temporary placeholder to create the dir so upload doesn't fail
+          mkdir -p coverage/core
+
+      # --- GENERATE CONFIG ---
       - name: Create Codecov Config
         run: |
           cat <<EOF > codecov.yml
@@ -57,16 +63,23 @@ jobs:
                 default:
                   target: auto
                   threshold: 1%
+              # You can even enforce different rules for core vs installer!
               patch:
                 default:
                   target: 100%
                   threshold: 0%
+          flag_management:
+            default_rules:
+              carryforward: true
           EOF
 
+      # --- UPLOAD ---
+      # We upload the parent 'coverage' folder.
+      # Codecov recursively finds all reports inside (installer/ and core/).
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./coverage_output
+          directory: ./coverage
           fail_ci_if_error: true
           verbose: true
