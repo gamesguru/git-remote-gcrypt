@@ -33,25 +33,25 @@ cov-inst: check-deps	##H Run installer logic tests
 	@echo "✅ [Installer] Done."
 
 .PHONY: cov-sys
-cov-sys: check-deps	##H Run core system tests (system-*.sh)
+cov-sys: check-deps    ##H Run multikey system test (Patched for kcov safety)
 	@echo "🚀 [System] Preparing coverage..."
 	@mkdir -p $(COV_SYSTEM)
 
-	@# 1. Main System Test
-	@if [ -f "./tests/system-test.sh" ]; then \
-		echo "🧪 Running kcov on system-test.sh..."; \
-		kcov --include-path=$(PWD)/git-remote-gcrypt \
-		     $(COV_SYSTEM) \
-		     ./tests/system-test.sh; \
-	fi
+	@echo "🔧 Patching system-test-multikey.sh..."
+	@cp ./tests/system-test-multikey.sh ./tests/tmp_multi.sh
+	@chmod +x ./tests/tmp_multi.sh
 
-	@# 2. Multikey System Test
-	@if [ -f "./tests/system-test-multikey.sh" ]; then \
-		echo "🧪 Running kcov on system-test-multikey.sh..."; \
-		kcov --include-path=$(PWD)/git-remote-gcrypt \
-		     $(COV_SYSTEM) \
-		     ./tests/system-test-multikey.sh; \
-	fi
+	@# Inject anti-hang GPG config using '#' as delimiter to handle pipes correctly
+	@sed -i 's#chmod 700 "$$GNUPGHOME"#chmod 700 "$$GNUPGHOME"; echo "no-tty" >> "$$GNUPGHOME/gpg.conf"; echo "pinentry-mode loopback" >> "$$GNUPGHOME/gpg.conf"; echo "allow-loopback-pinentry" >> "$$GNUPGHOME/gpg-agent.conf"; gpg-connect-agent reloadagent /bye >/dev/null 2>&1 || true;#' ./tests/tmp_multi.sh
+
+	@echo "🧪 Running kcov on multikey test..."
+	@kcov --bash-handle-sh-invocation \
+	     --include-pattern=git-remote-gcrypt \
+	     --exclude-path=.git,tests \
+	     $(COV_SYSTEM) \
+	     ./tests/tmp_multi.sh
+
+	@rm -f ./tests/tmp_multi.sh
 	@echo "✅ [System] Done."
 
 .PHONY: check-deps
