@@ -31,6 +31,13 @@ jobs:
       - name: "Test Suite: Installer"
         run: |
           export PS4='+ '
+
+          # FIX: Manually create the output directory first
+          mkdir -p coverage/installer
+
+          # FIX: Ensure the test script is executable
+          chmod +x ./tests/test-install-logic.sh
+
           kcov --bash-handle-sh-invocation \
                --include-pattern=install.sh \
                --exclude-path=.git,tests \
@@ -41,17 +48,13 @@ jobs:
       - name: "Test Suite: Core System"
         run: |
           export PS4='+ '
-          # Future: strict system tests for the actual binary
-          # We output to a DIFFERENT directory (coverage/core)
 
-          # kcov --bash-handle-sh-invocation \
-          #      --include-pattern=git-remote-gcrypt \
-          #      --exclude-path=.git,tests \
-          #      coverage/core \
-          #      ./tests/test-system.sh
-
-          # Temporary placeholder to create the dir so upload doesn't fail
+          # FIX: Create the placeholder directory so Upload step doesn't fail
           mkdir -p coverage/core
+
+          # (Uncomment when you have the system test ready)
+          # chmod +x ./tests/test-system.sh
+          # kcov ... coverage/core ./tests/test-system.sh
 
       # --- GENERATE CONFIG ---
       - name: Create Codecov Config
