@@ -1,0 +1,40 @@
+# Bash completion for git-remote-gcrypt
+# Install to: /etc/bash_completion.d/ or ~/.local/share/bash-completion/completions/
+
+_git_remote_gcrypt() {
+	local cur prev opts commands
+	COMPREPLY=()
+	cur="${COMP_WORDS[COMP_CWORD]}"
+	prev="${COMP_WORDS[COMP_CWORD - 1]}"
+	opts="-h --help -v --version --check"
+	commands="capabilities list push fetch"
+
+	# If we're after a subcommand, only offer -h/--help
+	if [[ " $commands " =~ " ${COMP_WORDS[1]:-} " ]]; then
+		COMPREPLY=($(compgen -W "-h --help" -- "$cur"))
+		return 0
+	fi
+
+	case "$prev" in
+	--check)
+		# Complete with gcrypt:: URLs or file paths
+		COMPREPLY=($(compgen -f -- "$cur"))
+		return 0
+		;;
+	esac
+
+	if [[ "$cur" == -* ]]; then
+		COMPREPLY=($(compgen -W "$opts" -- "$cur"))
+		return 0
+	fi
+
+	# Complete with both git protocol commands and flags on first argument
+	COMPREPLY=($(compgen -W "$commands $opts" -- "$cur"))
+
+	# Also complete with gcrypt:: URLs
+	if [[ "$cur" == gcrypt::* ]]; then
+		COMPREPLY+=("$cur")
+	fi
+}
+
+complete -F _git_remote_gcrypt git-remote-gcrypt

@@ -1,0 +1,17 @@
+#compdef git-remote-gcrypt
+# Zsh completion for git-remote-gcrypt
+# Install to: ~/.zsh/completions/ or /usr/share/zsh/site-functions/
+
+_git_remote_gcrypt() {
+	local -a args
+	args=(
+		'(- *)'{-h,--help}'[show help message]'
+		'(- *)'{-v,--version}'[show version information]'
+		'--check[check if URL is a gcrypt repository]:URL:_files'
+		'1:command:(capabilities list push fetch)'
+		'*:gcrypt URL:'
+	)
+	_arguments -s -S $args
+}
+
+_git_remote_gcrypt "$@"

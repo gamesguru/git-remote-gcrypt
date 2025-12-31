@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #  git-remote-gcrypt
 #
@@ -30,6 +30,118 @@ Gref="refs/gcrypt/gitception$GITCEPTION"
 Gref_rbranch="refs/heads/master"
 Packkey_bytes=63  # nbr random bytes for packfile keys, any >= 256 bit is ok
 Hashtype=SHA256   # SHA512 SHA384 SHA256 SHA224 supported.
+VERSION="@@DEV_VERSION@@"
+
+# Help function
+show_help() {
+	cat >&2 <<-EOF
+	git-remote-gcrypt version $VERSION
+	GPG-encrypted git remote helper
+
+	Usage: Automatically invoked by git when using gcrypt:: URLs
+	       See: man git-remote-gcrypt
+	       Or:  https://github.com/spwhitton/git-remote-gcrypt
+
+	Options:
+	  -h, --help       Show this help message
+	  -v, --version    Show version information
+	  --check <URL>    Check if URL is a gcrypt repository
+
+	Git Protocol Commands (for debugging):
+	  capabilities     List remote helper capabilities
+	  list             List refs in remote repository
+	  push <refspec>   Push refs to remote repository
+	  fetch <sha> <ref> Fetch refs from remote repository
+
+	Environment Variables:
+	  GCRYPT_DEBUG=1        Enable verbose debug logging to stderr
+	  GCRYPT_FULL_REPACK=1  Force full repack when pushing
+	EOF
+}
+
+# Parse flags
+while getopts "hv-:" opt; do
+	case "$opt" in
+		h)
+			show_help
+			exit 0
+			;;
+		v)
+			echo "git-remote-gcrypt version $VERSION" >&2
+			exit 0
+			;;
+		-)
+			# Handle long options
+			case "$OPTARG" in
+				help)
+					show_help
+					exit 0
+					;;
+				version)
+					echo "git-remote-gcrypt version $VERSION" >&2
+					exit 0
+					;;
+				*)
+					echo "Unknown option: --$OPTARG" >&2
+					exit 1
+					;;
+			esac
+			;;
+		*)
+			exit 1
+			;;
+	esac
+done
+
+# Handle subcommand help (e.g., git-remote-gcrypt capabilities --help)
+shift $((OPTIND - 1))
+case "${1:-}" in
+	capabilities)
+		if [ "${2:-}" = "-h" ] || [ "${2:-}" = "--help" ]; then
+			cat >&2 <<-EOF
+			capabilities - List git remote helper capabilities
+			
+			Usage: echo "capabilities" | git-remote-gcrypt <remote-url>
+			       Invoked by git to query what operations this helper supports.
+			EOF
+			exit 0
+		fi
+		;;
+	list)
+		if [ "${2:-}" = "-h" ] || [ "${2:-}" = "--help" ]; then
+			cat >&2 <<-EOF
+			list - List refs in remote repository
+			
+			Usage: echo "list" | git-remote-gcrypt <remote-url>
+			       Invoked by git to list available refs (branches/tags).
+			EOF
+			exit 0
+		fi
+		;;
+	push)
+		if [ "${2:-}" = "-h" ] || [ "${2:-}" = "--help" ]; then
+			cat >&2 <<-EOF
+			push - Push refs to remote repository
+			
+			Usage: echo "push <src>:<dst>" | git-remote-gcrypt <remote-url>
+			       Invoked by git to push local refs to the remote.
+			EOF
+			exit 0
+		fi
+		;;
+	fetch)
+		if [ "${2:-}" = "-h" ] || [ "${2:-}" = "--help" ]; then
+			cat >&2 <<-EOF
+			fetch - Fetch refs from remote repository
+			
+			Usage: echo "fetch <sha> <ref>" | git-remote-gcrypt <remote-url>
+			       Invoked by git to fetch objects from the remote.
+			EOF
+			exit 0
+		fi
+		;;
+esac
+
 Manifestfile=91bd0c092128cf2e60e1a608c31e92caf1f9c1595f83f2890ef17c0e4881aa0a
 Hex40="[a-f0-9]"
 Hex40=$Hex40$Hex40$Hex40$Hex40$Hex40$Hex40$Hex40$Hex40
@@ -64,6 +176,11 @@ xecho_n() { xecho "$@" | tr -d \\n ; } # kill newlines
 echo_git() { xecho "$@" ; }  # Code clarity
 echo_info() { xecho "gcrypt:" "$@" >&2; }
 echo_die() { echo_info "$@" ; exit 1; }
+print_debug() {
+	if [ -n "${GCRYPT_DEBUG:-}" ]; then
+		echo_info "DEBUG:" "$@"
+	fi
+}
 
 isnull() { case "$1" in "") return 0;; *) return 1;; esac; }
 isnonnull() { ! isnull "$1"; }
@@ -366,7 +483,16 @@ PRIVDECRYPT()
 {
 	local status_=
 	exec 4>&1 &&
-	status_=$(rungpg --status-fd 3 -q -d 3>&1 1>&4) &&
+	status_=$(rungpg --status-fd 3 -q -d 3>&1 1>&4 || { 
+		rc=$?
+		print_debug "rungpg failed with exit code $rc"
+		echo_info "ignoring GPG errors (likely anonymous recipient OR pinentry)."
+	}) &&
+	print_debug "status_ output:"
+	if [ -n "${GCRYPT_DEBUG:-}" ]; then
+		xfeed "$status_" grep "^\[GNUPG:\] " >&2
+	fi
+	print_debug "Checking regex: $1"
 	xfeed "$status_" grep "^\[GNUPG:\] ENC_TO " >/dev/null &&
 	(xfeed "$status_" grep -e "$1" >/dev/null || {
 		echo_info "Failed to verify manifest signature!" &&
@@ -470,6 +596,7 @@ read_config()
 		r_keyfpr=${r_keyfpr%%"$Newline"*}
 		keyid_=$(xfeed "$r_keyinfo" cut -f 5 -d :)
 		fprid_=$(xfeed "$r_keyfpr" cut -f 10 -d :)
+		print_debug "Resolved participant $recp_ to fpr: $fprid_"
 
 		isnonnull "$fprid_" &&
 		signers_="$signers_ $keyid_" &&
@@ -856,8 +983,8 @@ EOF
 	done <<EOF
 $1
 EOF
-	
-	echo_git 
+
+	echo_git
 }
 
 cleanup_tmpfiles()
@@ -901,6 +1028,8 @@ gcrypt_main_loop()
 
 	NAME=$1  # Remote name
 	URL=$2   # Remote URL
+
+	echo_info "git-remote-gcrypt version $VERSION"
 
 	setup
 
@@ -965,6 +1094,9 @@ then
 	then
 		exit 100
 	fi
+elif [ "x$1" = x--version ] || [ "x$1" = x-v ]; then
+	echo "git-remote-gcrypt version $VERSION"
+	exit 0
 else
 	gcrypt_main_loop "$@"
 fi

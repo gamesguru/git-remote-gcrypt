@@ -4,6 +4,14 @@
 set -efuC -o pipefail
 shopt -s inherit_errexit
 
+# Helpers
+print_info() { printf "\033[1;36m%s\033[0m\n" "$1"; }
+print_success() { printf "\033[1;34m✓ %s\033[0m\n" "$1"; }
+print_err() { printf "\033[1;31m%s\033[0m\n" "$1"; }
+
+
+
+
 # Unlike the main git-remote-gcrypt program, this testing script requires bash
 # (rather than POSIX sh) and also depends on various common system utilities
 # that the git-remote-gcrypt carefully avoids using (such as mktemp(1)).
@@ -29,6 +37,8 @@ pack_size_limit="12m" # If this variable is unset, there is no size limit.
 readonly num_commits files_per_commit random_source random_data_per_file \
     default_branch test_user_name test_user_email pack_size_limit
 
+print_info "Running system test..."
+
 # Pipe text into this function to indent it with four spaces. This is used
 # to make the output of this script prettier.
 indent() {
@@ -44,8 +54,8 @@ section_break() {
 assert() {
     (set +e; [[ -n ${show_command:-} ]] && set -x; "${@}")
     local -r status=${?}
-    { [[ ${status} -eq 0 ]] && echo "Verification succeeded."; } || \
-        echo "Verification failed."
+    { [[ ${status} -eq 0 ]] && print_success "Verification succeeded."; } || \
+        print_err "Verification failed."
     return "${status}"
 }
 
@@ -111,7 +121,8 @@ random_data_file="${tempdir}/data"
 head -c "${random_data_size}" "${random_source}" > "${random_data_file}"
 
 # Create gpg key and subkey.
-echo "Step 1: Creating a new GPG key and subkey to use for testing:"
+# Create gpg key and subkey.
+print_info "Step 1: Creating a new GPG key and subkey to use for testing:"
 (
     set -x
     gpg --batch --passphrase "" --quick-generate-key \
@@ -122,7 +133,7 @@ echo "Step 1: Creating a new GPG key and subkey to use for testing:"
 ###
 section_break
 
-echo "Step 2: Creating new repository with random data:"
+print_info "Step 2: Creating new repository with random data:"
 {
     git init -- "${tempdir}/first"
     cd "${tempdir}/first"
@@ -154,14 +165,14 @@ echo "Step 2: Creating new repository with random data:"
 ###
 section_break
 
-echo "Step 3: Creating an empty bare repository to receive pushed data:"
+print_info "Step 3: Creating an empty bare repository to receive pushed data:"
 git init --bare -- "${tempdir}/second.git" | indent
 
 
 ###
 section_break
 
-echo "Step 4: Pushing the first repository to the second one using gitception:"
+print_info "Step 4: Pushing the first repository to the second one using gitception:"
 {
     # Note that when pushing to a bare local repository, git-remote-gcrypt uses
     # gitception, rather than treating the remote as a local repository.
@@ -197,7 +208,7 @@ echo "Step 4: Pushing the first repository to the second one using gitception:"
 ###
 section_break
 
-echo "Step 5: Cloning the second repository using gitception:"
+print_info "Step 5: Cloning the second repository using gitception:"
 {
     (
         set -x
@@ -221,3 +232,5 @@ echo "Step 5: Cloning the second repository using gitception:"
     show_command=1 assert diff -r --exclude ".git" -- \
         "${tempdir}/first" "${tempdir}/third" 2>&1 | indent
 } | indent
+
+[ -n "${COV_DIR:-}" ] && print_success "OK. Report: file://${COV_DIR}/index.html"
