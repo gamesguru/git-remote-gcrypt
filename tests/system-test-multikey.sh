@@ -1,74 +1,118 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
+# SPDX-License-Identifier: GPL-2.0-or-later
 set -efuC -o pipefail
 shopt -s inherit_errexit
 
 # Helpers
-print_info() { printf "\033[1;36m%s\033[0m\n" "$1"; }
-print_success() { printf "\033[1;34m✓ %s\033[0m\n" "$1"; }
-print_warn() { printf "\033[1;33m%s\033[0m\n" "$1"; }
-print_err() { printf "\033[1;31m%s\033[0m\n" "$1"; }
+print_info() { printf "\033[1;36m[TEST] %s\033[0m\n" "$1"; }
+print_success() { printf "\033[1;34m[TEST] ✓ %s\033[0m\n" "$1"; }
+print_warn() { printf "\033[1;33m[TEST] WARNING: %s\033[0m\n" "$1"; }
+print_err() { printf "\033[1;31m[TEST] FAIL: %s\033[0m\n" "$1"; }
 
 # Settings
 num_commits=5
 files_per_commit=3
+
+print_info "Running multi-key clone test..."
 random_source="/dev/urandom"
 random_data_per_file=1024 # Reduced size for faster testing (1KB)
 default_branch="main"
-test_user_name="Gcrypt Test User"
-test_user_email="gcrypt-test@example.com"
-pack_size_limit="12m" 
+test_user_name="git-remote-gcrypt"
+test_user_email="git-remote-gcrypt@example.com"
+pack_size_limit="12m"
 
-# Setup Sandbox
+readonly num_commits files_per_commit random_source random_data_per_file \
+	default_branch test_user_name test_user_email pack_size_limit
+
+# ----------------- Helper Functions -----------------
+indent() {
+	sed 's/^\(.*\)$/    \1/'
+}
+
+section_break() {
+	echo
+	printf '*%.0s' {1..70}
+	echo $'\n'
+}
+
+assert() {
+	(
+		set +e
+		[[ -n ${show_command:-} ]] && set -x
+		"${@}"
+	)
+	local -r status=${?}
+	{ [[ ${status} -eq 0 ]] && print_success "Verification succeeded."; } ||
+		print_err "Verification failed."
+	return "${status}"
+}
+
+fastfail() {
+	"$@" || kill -- "-$$"
+}
+# ----------------------------------------------------
+
+umask 077
 tempdir=$(mktemp -d)
-trap 'rm -rf "$tempdir"' EXIT
-print_info "Running in sandbox: $tempdir"
+readonly tempdir
+trap 'rm -Rf -- "${tempdir}"' EXIT
 
-# --- KEY GENERATION ---
-# We need to generate keys such that the target key is "buried" deep in the keyring.
-# The bug occurs when GPG tries many keys and fails on earlier ones with a checksum error.
-# We will generate 18 keys.
-# Key 1..17: Decoys (Ed25519) - will be tried and fail (or trigger checksum error).
-# Key 18: Target (Ed25519) - the one we actually encrypt to.
+# Setup PATH to use local git-remote-gcrypt
+PATH=$(git rev-parse --show-toplevel):${PATH}
+readonly PATH
+export PATH
 
-gpg_home="${tempdir}/gpg-home"
-mkdir -p "$gpg_home"
-chmod 700 "$gpg_home"
-export GNUPGHOME="$gpg_home"
+# Clean GIT environment
+git_env=$(env | sed -n 's/^\(GIT_[^=]*\)=.*$/\1/p')
+IFS=$'\n' unset ${git_env}
 
-# Create a minimal gpg.conf to avoid randomness issues and ensure consistency
-cat >"${gpg_home}/gpg.conf" <<EOF
-use-agent
-pinentry-mode loopback
-no-tty
-EOF
-
-cat >"${gpg_home}/gpg-agent.conf" <<EOF
-allow-loopback-pinentry
-EOF
-
-print_info "Step 1: Generating 18 Ed25519 keys (this may take a moment)..."
-num_keys=18
-for i in $(seq 1 $num_keys); do
-	# Generate simple Ed25519 key (fast, no expiration)
-	# We use a batch file for speed and non-interactivity
-	cat >"${tempdir}/gen-key-${i}.batch" <<EOF
-%echo Generating key $i...
-Key-Type: EDDSA
-Key-Curve: ed25519
-Key-Usage: sign
-Subkey-Type: ECDH
-Subkey-Curve: cv25519
-Name-Real: git-remote-gcrypt${i}
-Name-Email: gcrypt${i}@example.com
-Expire-Date: 0
-%no-protection
-%commit
-EOF
-	gpg --batch --generate-key "${tempdir}/gen-key-${i}.batch" >/dev/null 2>&1
+# GPG Setup
+export GNUPGHOME="${tempdir}/gpg"
+mkdir "${GNUPGHOME}"
+cat <<'EOF' >"${GNUPGHOME}/gpg"
+#!/usr/bin/env bash
+set -efuC -o pipefail; shopt -s inherit_errexit
+args=( "${@}" )
+for ((i = 0; i < ${#}; ++i)); do
+    if [[ ${args[${i}]} = "--secret-keyring" ]]; then
+        unset "args[${i}]" "args[$(( i + 1 ))]"
+        break
+    fi
 done
+exec gpg "${args[@]}"
+EOF
+chmod +x "${GNUPGHOME}/gpg"
 
-print_info "Step 2: Collecting fingerprints..."
+# Git Config
+export GIT_CONFIG_SYSTEM=/dev/null
+export GIT_CONFIG_GLOBAL="${tempdir}/gitconfig"
+mkdir "${tempdir}/template"
+git config --global init.defaultBranch "${default_branch}"
+git config --global user.name "${test_user_name}"
+git config --global user.email "${test_user_email}"
+git config --global init.templateDir "${tempdir}/template"
+git config --global gpg.program "${GNUPGHOME}/gpg"
+
+# Prepare Random Data
+total_files=$((num_commits * files_per_commit))
+random_data_size=$((total_files * random_data_per_file))
+random_data_file="${tempdir}/data"
+head -c "${random_data_size}" "${random_source}" >"${random_data_file}"
+
+###
+section_break
+
+print_info "Step 1: Creating multiple GPG keys for participants..."
+num_keys=18 # Buried deep: 17 decoys + 1 valid key
 key_fps=()
+(
+	set -x
+	for ((i = 0; i < num_keys; i++)); do
+		gpg --batch --passphrase "" --quick-generate-key \
+			"${test_user_name}${i} <${test_user_email}${i}>"
+	done
+) 2>&1 | indent
 
 # Capture fingerprints
 # Integrated fix: use mapfile
@@ -84,101 +128,175 @@ key_fps=()
 mapfile -t key_fps < <(gpg --list-keys --with-colons | awk -F: '/^pub:/ {getline; print $10}')
 echo "Generated keys: ${key_fps[*]}" | indent
 
+# Sanity Check
+if [ "${#key_fps[@]}" -ne "$num_keys" ]; then
+	print_err "FATAL: Expected $num_keys keys, captured ${#key_fps[@]}."
+	print_err "       Check grep/awk logic (likely capturing subkeys vs primary keys mismatch)."
+	exit 1
+fi
+print_success "Sanity Check Passed: Captured ${#key_fps[@]} Primary Keys."
+
 ###
 section_break
 
-# Setup Git
-export GIT_AUTHOR_NAME="$test_user_name"
-export GIT_AUTHOR_EMAIL="$test_user_email"
-export GIT_COMMITTER_NAME="$test_user_name"
-export GIT_COMMITTER_EMAIL="$test_user_email"
-
-print_info "Step 3: Creating repository structure..."
-mkdir "${tempdir}/first"
-(
+print_info "Step 2: Creating source repository..."
+{
+	git init -- "${tempdir}/first"
 	cd "${tempdir}/first"
-	git init -q -b "$default_branch"
-	echo "content" >file.txt
-	git add file.txt
-	git commit -q -m "Initial commit"
-)
+	for ((i = 0; i < num_commits; ++i)); do
+		for ((j = 0; j < files_per_commit; ++j)); do
+			file_index=$((i * files_per_commit + j))
+			random_data_index=$((file_index * random_data_per_file))
+			head -c "${random_data_per_file}" >"$((file_index)).data" < \
+				<(tail -c +"${random_data_index}" "${random_data_file}" || :)
+		done
+		git add .
+		git commit -q -m "Commit #${i}"
+	done
+	git log --format=oneline | indent
+} | indent
 
-# Prepare Remote Gcrypt Repo
-# We use the file:// backend which just needs a directory.
-# But for gcrypt::, we essentially push to a directory that becomes the encrypted store.
-mkdir -p "${tempdir}/second.git"
+###
+section_break
+
+print_info "Step 3: Creating bare remote..."
+git init --bare -- "${tempdir}/second.git" | indent
+
+###
+section_break
 
 print_info "Step 4: Pushing with SINGULAR participant (Key 2) to bury it..."
-# We explicitly set ONLY the LAST key as the participant.
-# This forces GPG to skip the first (num_keys-1) keys.
-last_key_idx=$((num_keys - 1))
-git config gcrypt.participants "${key_fps[last_key_idx]}"
-git push -f "gcrypt::${tempdir}/second.git#${default_branch}" "${default_branch}"
-) 2>&1
+{
+	(
+		set -x
+		cd "${tempdir}/first"
+		# CRITICAL REPRO: Only encrypt to the LAST key.
+		# All previous keys are in the keyring but are NOT recipients.
+		# This forces GPG to skip the first (num_keys-1) keys.
+		last_key_idx=$((num_keys - 1))
+		git config gcrypt.participants "${key_fps[last_key_idx]}"
+		git config user.signingkey "${key_fps[last_key_idx]}"
+		git push -f "gcrypt::${tempdir}/second.git#${default_branch}" "${default_branch}"
+	) 2>&1
 } | indent
 
+###
+section_break
 
-print_info "Step 5: Cloning back - EXPECTING GPG TO ITERATE..."
-# Now we try to clone (pull). GPG will have to decrypt the manifest.
-# Since we have 18 keys in our keyring, and the message is encrypted to Key #18,
-# GPG will try Key 1, 2... 17.
-#
-# With the BUG: GPG encounters a checksum error (due to ECDH/Ed25519 issues in some GPG versions with anonymous/multi-key handling) on an earlier key and ABORTS properly checking the others. git-remote-gcrypt sees the exit code 2 and dies.
-#
-# With the FIX: git-remote-gcrypt ignores the intermediate error and lets GPG continue until it finds Key 18.
-output_file="${tempdir}/output.log"
-(
-	cd "${tempdir}"
-	# We must force GPG to try keys.
-	# Actually, GPG tries all secret keys for which it has an encrypted session key packet.
-	# Since we are the participant, it should just find it.
-	# BUT, the bug (Debian #885770 / GnuPG T3597) was that *anonymous* recipients (gpg -R) cause this iteration to be fragile.
-	# gcrypt defaults to -R (anonymous).
-	
-	git clone "gcrypt::${tempdir}/second.git#${default_branch}" "third"
-) >"${output_file}" 2>&1
-ret=$?
+print_info "Step 5: Unhappy Path - Test clone with NO matching keys..."
+{
+	original_gnupghome="${GNUPGHOME}"
+	export GNUPGHOME="${tempdir}/gpg-empty"
+	mkdir "${GNUPGHOME}"
+
+	# We expect this to FAIL
+	(
+		set +e
+		git clone -b "${default_branch}" "gcrypt::${tempdir}/second.git#${default_branch}" -- "${tempdir}/fail_test"
+		if [ $? -eq 0 ]; then
+			print_info "ERROR: Clone succeeded unexpectedly with empty keyring!"
+			exit 1
+		fi
+	) 2>&1 | indent
+
+	echo "Clone failed as expected." | indent
+	export GNUPGHOME="${original_gnupghome}"
+}
+
+###
+section_break
 
 print_info "Step 6: Reproduction Step - Clone with buried key..."
-cat "${output_file}"
+{
+	# Capture output to check for GPG errors
+	output_file="${tempdir}/clone_output"
+	set +e
+	(
+		set -x
+		git clone -b "${default_branch}" "gcrypt::${tempdir}/second.git#${default_branch}" -- "${tempdir}/third"
+	) >"${output_file}" 2>&1
+	ret=$?
+	set -e
 
-if grep -q "Checksum error" "${output_file}" && [ $ret -ne 0 ]; then
-	print_warn "BUG(REPRODUCED): GPG Checksum error detected AND Clone failed!"
-	exit 1
-elif grep -q "Checksum error" "${output_file}" && [ $ret -eq 0 ]; then
-	print_success "SUCCESS: Checksum error detected but Clone SUCCEEDED. (Fix is working!)"
-elif [ $ret -eq 0 ]; then
-	print_warn "WARNING: Test passed unexpectedly (Checksum error NOT detected at all). Bug trigger might be absent."
-else
-	print_warn "WARNING: Clone failed with generic error (Checksum error not detected)."
-fi
+	cat "${output_file}"
 
-# Continue to verify content.
-echo "Verifying content match..."
-assert diff -r --exclude ".git" -- "${tempdir}/first" "${tempdir}/third" 2>&1 | indent
+	if grep -q "Checksum error" "${output_file}" && [ $ret -ne 0 ]; then
+		print_warn "WARNING: GPG failed with checksum error."
+		print_err "BUG REPRODUCED! Exiting due to earlier GPG failures."
+		exit 1
+	elif grep -q "Checksum error" "${output_file}" && [ $ret -eq 0 ]; then
+		print_success "SUCCESS: Checksum error detected but Clone SUCCEEDED. (Fix is working!)"
+	elif [ $ret -eq 0 ]; then
+		print_warn "WARNING: Clone passed unexpectedly (Checksum error not detected). Bug not triggered."
+		print_err "Exiting due to unexpected pass."
+		exit 1
+	else
+		print_err "ERROR: Clone failed with generic error (Checksum error not detected)."
+		exit 1
+	fi
+
+	# Continue to verify content.
+	print_info "Verifying content match..."
+	assert diff -r --exclude ".git" -- "${tempdir}/first" "${tempdir}/third" 2>&1 | indent
 } | indent
 
-print_info "Step 7: Reproduction Step - Push with buried key..."
-(
-	cd "${tempdir}/third"
-	echo "new data" >"new_file"
-	git add "new_file"
-	git commit -q -m "Commit for Step 7"
-	git push "gcrypt::${tempdir}/second.git#${default_branch}" "${default_branch}"
-) >"${output_file}" 2>&1
-ret=$?
+###
+section_break
 
 print_info "Step 7: Reproduction Step - Push with buried key..."
-cat "${output_file}"
+{
+	# Capture output to check for GPG errors
+	output_file="${tempdir}/push_output"
+	set +e
+	(
+		set -x
+		cd "${tempdir}/first"
+		# Make a change so we can push
+		echo "new data" >"new_file"
+		git add "new_file"
+		git commit -q -m "Commit for Step 7"
 
-if grep -q "Checksum error" "${output_file}" && [ $ret -ne 0 ]; then
-	print_warn "BUG(REPRODUCED): GPG Checksum error detected (Push) AND Push failed!"
-	exit 1
-elif grep -q "Checksum error" "${output_file}" && [ $ret -eq 0 ]; then
-	print_success "SUCCESS: Checksum error detected (Push) but Push SUCCEEDED. (Fix is working!)"
-elif [ $ret -eq 0 ]; then
-	print_warn "WARNING: Push passed unexpectedly (Checksum error NOT detected at all)."
-else
-	print_warn "WARNING: Push failed with generic error (Checksum error not detected)."
-fi
+		# Set signing key for this push
+		last_key_idx=$((num_keys - 1))
+
+		# Regression Check: Ensure we didn't capture subkeys
+		if [ "${#key_fps[@]}" -ne "$num_keys" ]; then
+			print_err "FATAL: Key array corrupted! Expected $num_keys keys, found ${#key_fps[@]}."
+			print_err "       This indicates the 'awk' capture logic has regressed (likely capturing subkeys)."
+			exit 1
+		fi
+		print_success "Sanity Check (Step 7): Key count correct (${#key_fps[@]}). AWK fix confirmed active."
+
+		# Visual Verification: Show which key we actually picked.
+		# If the bug were active (subkey capture), this would show 'git-remote-gcrypt8' (Key #9)
+		# With the fix, it must show 'git-remote-gcrypt17' (Key #18)
+		print_info "Selected Key Details:"
+		gpg --list-keys "${key_fps[last_key_idx]}" | indent
+
+		git config gcrypt.participants "${key_fps[last_key_idx]}"
+		git config user.signingkey "${key_fps[last_key_idx]}"
+
+		git push "gcrypt::${tempdir}/second.git#${default_branch}" "${default_branch}"
+	) >"${output_file}" 2>&1
+	ret=$?
+	set -e
+
+	cat "${output_file}"
+
+	if grep -q "Checksum error" "${output_file}" && [ $ret -ne 0 ]; then
+		print_warn "WARNING: GPG failed with checksum error."
+		print_err "BUG REPRODUCED! Exiting due to earlier GPG failures."
+		exit 1
+	elif grep -q "Checksum error" "${output_file}" && [ $ret -eq 0 ]; then
+		print_success "SUCCESS: Checksum error detected (Push) but Push SUCCEEDED. (Fix is working!)"
+	elif [ $ret -eq 0 ]; then
+		print_warn "WARNING: Push passed unexpectedly (Checksum error not detected). Bug not triggered."
+		print_err "Exiting due to unexpected pass."
+		exit 1
+	else
+		print_err "ERROR: Push failed with generic error (Checksum error not detected)."
+		exit 1
+	fi
 } | indent
+
+[ -n "${COV_DIR:-}" ] && print_success "OK. Report: file://${COV_DIR}/index.html"

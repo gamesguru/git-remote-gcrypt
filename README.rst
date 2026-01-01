@@ -114,6 +114,14 @@ Environment variables
     When set (to anything other than the empty string), this environment
     variable forces a full repack when pushing.
 
+*GCRYPT_TRACE*
+    When set (to anything other than the empty string), enables shell execution tracing (set -x)
+    for external commands (rsync, curl, rclone).
+
+*GCRYPT_DEBUG*
+    When set (to anything other than the empty string), enables verbose debug logging to standard error.
+    This includes GPG status output and resolved participant keys.
+
 Examples
 ========
 
