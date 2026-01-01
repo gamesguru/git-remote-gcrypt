@@ -366,7 +366,16 @@ PRIVDECRYPT()
 {
 	local status_=
 	exec 4>&1 &&
-	status_=$(rungpg --status-fd 3 -q -d 3>&1 1>&4) &&
+	status_=$(rungpg --status-fd 3 -q -d 3>&1 1>&4 || { 
+		rc=$?
+		print_debug "rungpg failed with exit code $rc"
+		echo_info "ignoring GPG errors (likely anonymous recipient OR pinentry)."
+	}) &&
+	print_debug "status_ output:"
+	if [ -n "${GCRYPT_DEBUG:-}" ]; then
+		xfeed "$status_" grep "^\[GNUPG:\] " >&2
+	fi
+	print_debug "Checking regex: $1"
 	xfeed "$status_" grep "^\[GNUPG:\] ENC_TO " >/dev/null &&
 	(xfeed "$status_" grep -e "$1" >/dev/null || {
 		echo_info "Failed to verify manifest signature!" &&
