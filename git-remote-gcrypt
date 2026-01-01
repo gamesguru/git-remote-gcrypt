@@ -25,6 +25,12 @@ set -e # errexit
 set -f # noglob
 set -C # noclobber
 
+VERSION="@@DEV_VERSION@@"
+if [ "${1:-}" = "-v" ] || [ "${1:-}" = "--version" ]; then
+	echo "git-remote-gcrypt version $VERSION" >&2
+	exit 0
+fi
+
 export GITCEPTION="${GITCEPTION:-}+" # Reuse $Gref except when stacked
 Gref="refs/gcrypt/gitception$GITCEPTION"
 Gref_rbranch="refs/heads/master"
@@ -366,7 +372,7 @@ PRIVDECRYPT()
 {
 	local status_=
 	exec 4>&1 &&
-	status_=$(rungpg --status-fd 3 -q -d 3>&1 1>&4 || { 
+	status_=$(rungpg --status-fd 3 -q -d 3>&1 1>&4 || {
 		rc=$?
 		print_debug "rungpg failed with exit code $rc"
 		echo_info "ignoring GPG errors (likely anonymous recipient OR pinentry)."
@@ -865,8 +871,8 @@ EOF
 	done <<EOF
 $1
 EOF
-	
-	echo_git 
+
+	echo_git
 }
 
 cleanup_tmpfiles()

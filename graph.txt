@@ -1,0 +1,10 @@
+* 416fad4 (HEAD -> feat/user-experience) feat: Add shell completions, uninstall script, and CLI flags
+* 6fcafc9 (feat/infrastructure) feat: Add Makefile, CI, and improved testing infrastructure
+* 88a122e (fix/gpg-checksum) fix(gpg): Handle ECDH checksum error with many keys
+* ee1494b (gg/master, gg/HEAD, master, hotfix-01, backup-mega-commit) fix(gpg): Handle ECDH checksum error with many keys
+| * 0d66303 (gg/hotfix-01) debug workflows
+| * cffb09e fixup! add -h/--help target
+| * e699981 add completions
+| * 4e618f3 add -h/--help target
+| * 7ac8613 add uninstall script/target
+| * b85ed29 fixup! debug logging
