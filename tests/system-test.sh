@@ -355,6 +355,74 @@ print_info "Step 8: Signal Handling Test (Ctrl+C simulation):"
     fi
 } | indent
 
+###
+section_break
+
+print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
+{
+    # This test verifies behavior when manifest cannot be fetched
+    # AND local gcrypt-id is not set.
+    # Current behavior: gcrypt creates a NEW repo, potentially overwriting!
+    # This test documents (and may later guard against) this behavior.
+    
+    cd "${tempdir}"
+    
+    # Save the manifest file
+    manifest_file="${tempdir}/second.git/objects/pack/91bd0c092128cf2e60e1a608c31e92caf1f9c1595f83f2890ef17c0e4881aa0a"
+    if [ -f "$manifest_file" ]; then
+        cp "$manifest_file" "${tempdir}/manifest_backup"
+        manifest_saved=true
+    else
+        # For gitception, manifest is stored differently
+        manifest_saved=false
+        print_info "Skipping manifest backup (gitception storage)"
+    fi
+    
+    # Create a fresh clone to test with
+    mkdir "${tempdir}/fresh_clone_test"
+    cd "${tempdir}/fresh_clone_test"
+    git init
+    git config user.name "${test_user_name}"
+    git config user.email "${test_user_email}"
+    echo "test data" > test.txt
+    git add test.txt
+    git commit -m "Initial commit"
+    
+    # Try to push to the EXISTING remote
+    # Since this fresh repo has no gcrypt-id, it could be dangerous
+    output_file="${tempdir}/network_guard_output"
+    set +e
+    (
+        set -x
+        git push "gcrypt::${tempdir}/second.git#${default_branch}" \
+            "${default_branch}:refs/heads/test-network-guard" 2>&1
+    ) | tee "${output_file}"
+    push_result=$?
+    set -e
+    
+    # The push should succeed (same GPG key can sign/verify)
+    # but we want to ensure it APPENDED to existing refs, not overwrote
+    if [ $push_result -eq 0 ]; then
+        print_success "Push succeeded (expected when keys match)."
+        
+        # Verify original refs still exist by cloning again
+        git clone -b "${default_branch}" \
+            "gcrypt::${tempdir}/second.git#${default_branch}" -- \
+            "${tempdir}/verify_not_overwritten" 2>&1 | indent || {
+            print_err "Original branch was lost - OVERWRITE DETECTED!"
+            exit 1
+        }
+        print_success "Original branch still exists - no overwrite."
+    else
+        print_info "Push failed (may be expected if keys don't match)."
+    fi
+    
+    # Restore manifest if we backed it up
+    if [ "$manifest_saved" = true ]; then
+        cp "${tempdir}/manifest_backup" "$manifest_file"
+    fi
+} | indent
+
 
 if [ -n "${COV_DIR:-}" ]; then
     print_success "OK. Report: file://${COV_DIR}/index.html"

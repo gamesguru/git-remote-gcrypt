@@ -161,6 +161,7 @@ Refslist=
 Packlist=
 Keeplist=
 Extnlist=
+Manifest_version=
 Repack_limit=25
 
 Recipients=
@@ -601,7 +602,7 @@ make_new_repo()
 	iseq "${NAME#gcrypt::}" "$URL" ||
 		git config "remote.$NAME.gcrypt-id" "$Repoid"
 	echo_info "Remote ID is $Repoid"
-	Extnlist="extn comment"
+	Extnlist="extn gcrypt-version $VERSION"
 }
 
 
@@ -756,6 +757,15 @@ ensure_connected()
 	filter_to @Keeplist "keep :*:*" "$manifest_"
 	filter_to @Extnlist "extn *" "$manifest_"
 	filter_to @r_repoid "repo *" "$manifest_"
+
+	# Check gcrypt version from manifest
+	filter_to @Manifest_version "extn gcrypt-version *" "$manifest_"
+	Manifest_version=${Manifest_version#extn gcrypt-version }
+	if isnonnull "$Manifest_version" && isnoteq "$Manifest_version" "$VERSION"
+	then
+		# Compare versions (simple string compare for now)
+		echo_info "Note: Remote was created with gcrypt $Manifest_version (you have $VERSION)"
+	fi
 
 	r_repoid=${r_repoid#repo }
 	r_repoid=${r_repoid% *}
