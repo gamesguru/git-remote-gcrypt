@@ -400,26 +400,76 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
     push_result=$?
     set -e
     
-    # The push should succeed (same GPG key can sign/verify)
-    # but we want to ensure it APPENDED to existing refs, not overwrote
-    if [ $push_result -eq 0 ]; then
-        print_success "Push succeeded (expected when keys match)."
-        
-        # Verify original refs still exist by cloning again
-        git clone -b "${default_branch}" \
-            "gcrypt::${tempdir}/second.git#${default_branch}" -- \
-            "${tempdir}/verify_not_overwritten" 2>&1 | indent || {
-            print_err "Original branch was lost - OVERWRITE DETECTED!"
+    # The push should FAIL now because we require --force for missing manifests
+    if [ $push_result -ne 0 ]; then
+        print_success "Push failed (PROTECTED against accidental overwrite)."
+        if grep -q "Use --force to create valid new repository" "${output_file}"; then
+            print_success "Correct error message received."
+        else
+            print_err "Wrong error message!"
+            cat "${output_file}" | indent
             exit 1
-        }
-        print_success "Original branch still exists - no overwrite."
+        fi
     else
-        print_info "Push failed (may be expected if keys don't match)."
+        print_err "Push SUCCEEDED but should have FAILED (Overwrite risk!)"
+        exit 1
     fi
     
     # Restore manifest if we backed it up
     if [ "$manifest_saved" = true ]; then
         cp "${tempdir}/manifest_backup" "$manifest_file"
+    fi
+} | indent
+
+
+###
+section_break
+
+print_info "Step 10: New Repo Safety Test (Require Force):"
+{
+    cd "${tempdir}"
+    # Setup: Ensure we have a "missing" remote scenario
+    # We'll use a new random path that definitely doesn't exist
+    rand_id=$(date +%s)
+    missing_remote_url="${tempdir}/missing_repo_${rand_id}.git"
+    
+    cd "${tempdir}/fresh_clone_test"
+    
+    print_info "Attempting push to missing remote WITHOUT force..."
+    set +e
+    (
+        git push "gcrypt::${missing_remote_url}" "${default_branch}" 2>&1
+    ) > "${output_file}.step10.fail"
+    rc=$?
+    set -e
+    
+    if [ $rc -ne 0 ]; then
+        if grep -q "Use --force to create valid new repository" "${output_file}.step10.fail"; then
+            print_success "Push correctly BLOCKED without force."
+        else
+            cat "${output_file}.step10.fail" | indent
+            print_err "Push failed but with wrong error message!"
+            exit 1
+        fi
+    else
+        print_err "Push SHOULD have failed but SUCCEEDED!"
+        exit 1
+    fi
+
+    print_info "Attempting push to missing remote WITH force..."
+    set +e
+    (
+        git push --force "gcrypt::${missing_remote_url}" "${default_branch}" 2>&1
+    ) > "${output_file}.step10.succ"
+    rc=$?
+    set -e
+    
+    if [ $rc -eq 0 ]; then
+        print_success "Push succeeded with force."
+    else
+        cat "${output_file}.step10.succ" | indent
+        print_err "Push failed even with force!"
+        exit 1
     fi
 } | indent
 

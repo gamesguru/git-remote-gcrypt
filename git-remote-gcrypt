@@ -953,10 +953,7 @@ do_push()
 
 	ensure_connected
 
-	if iseq "$Did_find_repo" "no"
-	then
-		make_new_repo
-	fi
+
 
 	if isnonnull "$Refslist"
 	then
@@ -985,6 +982,16 @@ do_push()
 	done <<EOF
 $1
 EOF
+
+	if iseq "$Did_find_repo" "no"
+	then
+		if [ "$force_passed" = true ]
+		then
+			make_new_repo
+		else
+			echo_die "Remote manifest not found. Use --force to create valid new repository."
+		fi
+	fi
 
 	if [ "$force_passed" = false ]
 	then
