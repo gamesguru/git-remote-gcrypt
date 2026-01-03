@@ -257,7 +257,8 @@ filter_to()
 	IFS=$Newline
 	for f_line in $3
 	do
-		$f_neg isnonnull "${f_line##"$2"}" || f_ret=$f_ret$f_line$Newline
+		# shellcheck disable=SC2295
+		$f_neg isnonnull "${f_line##$2}" || f_ret=$f_ret$f_line$Newline
 	done
 	setvar "$1" "${f_ret%"$Newline"}"
 }
@@ -288,14 +289,16 @@ gitception_get()
 	# shellcheck disable=SC3043
 	local ret_=: obj_id="" fet_head="$GIT_DIR/FETCH_HEAD"
 	[ -e "$fet_head" ] && command mv -f "$fet_head" "$fet_head.$$~" || :
-	git fetch -q -f "$1" "$Gref_rbranch:$Gref" >/dev/null &&
-		obj_id="$(git ls-tree "$Gref" | xgrep -E '\b'"$2"'$' | awk '{print $3}')" &&
+	if git fetch -q -f "$1" "$Gref_rbranch:$Gref" >/dev/null; then
+		obj_id="$(git ls-tree "$Gref" | xgrep -E '\b'"$2"'$' | awk '{print $3}')"
 		if isnonnull "$obj_id" && git cat-file blob "$obj_id"; then
 			ret_=:
 		else
 			ret_=false
-			:
 		fi
+	else
+		ret_=false
+	fi
 	[ -e "$fet_head.$$~" ] && command mv -f "$fet_head.$$~" "$fet_head" || :
 	$ret_
 }
@@ -803,7 +806,8 @@ get_pack_files()
 		filter_to @r_pack_key_line "pack $pack_id *" "$Packlist"
 		key_=${r_pack_key_line#pack "$pack_id" }
 
-		if isnonnull "${pack_##"$Hex40"*}" ||
+		# shellcheck disable=SC2295
+		if isnonnull "${pack_##$Hex40*}" ||
 			isnoteq "$htype_" SHA256 && isnoteq "$htype_" SHA224 &&
 			isnoteq "$htype_" SHA384 && isnoteq "$htype_" SHA512
 		then

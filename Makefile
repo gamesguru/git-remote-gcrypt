@@ -115,14 +115,14 @@ define CHECK_COVERAGE
 if [ -f "$$XML_FILE" ]; then \
 	echo ""; \
 	echo "Report for: file://$$(dirname "$$XML_FILE")/index.html"; \
-	XML_FILE="$$XML_FILE" PATT="$(2)" python3 tests/coverage_report.py; \
+	XML_FILE="$$XML_FILE" PATT="$(2)" FAIL_UNDER="$(3)" python3 tests/coverage_report.py; \
 	fi
 endef
 
 .PHONY: test/cov
 test/cov:	##H Show coverage gaps
-	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt)
-	$(call CHECK_COVERAGE,$(COV_INSTALL),install.sh)
+	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt,35)
+	$(call CHECK_COVERAGE,$(COV_INSTALL),install.sh,80)
 
 
 

@@ -6,6 +6,7 @@ Created on Wed Dec 31 08:57:33 2025
 """
 
 import os
+import sys
 import textwrap
 import xml.etree.ElementTree as E
 
@@ -33,6 +34,7 @@ if total_lines > 0:
 else:
     print(f"Coverage: N/A (0 lines found for {patt})")
 
+
 if missed:
     print(f"\033[31;1m{len(missed)} missing lines\033[0m in {patt}:")
     print(
@@ -40,3 +42,9 @@ if missed:
             ", ".join(missed), width=72, initial_indent="  ", subsequent_indent="  "
         )
     )
+
+fail_under = int(os.environ.get("FAIL_UNDER") or 0)
+if total_lines > 0:
+    if pct < fail_under:
+        print(f"\033[31;1mFAIL: Coverage {pct:.1f}% is below threshold {fail_under}%\033[0m")
+        sys.exit(1)
