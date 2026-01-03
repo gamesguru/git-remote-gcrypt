@@ -78,7 +78,7 @@ COV_INSTALL := $(COV_ROOT)/installer
 
 .PHONY: test/, test
 test/: test
-test: test/installer test/system test/cov	##H All tests & coverage
+test: test/purity test/installer test/system test/cov	##H All tests & coverage
 
 .PHONY: test/installer
 test/installer: check/deps	##H Test installer logic
@@ -92,14 +92,24 @@ test/installer: check/deps	##H Test installer logic
 	     ./tests/test-install-logic.sh
 
 
+.PHONY: test/purity
+test/purity: check/deps	##H Run logic tests with native shell (As Shipped Integrity Check)
+	@echo "running system tests (native /bin/sh)..."
+	@export GPG_TTY=$$(tty); \
+	 [ -n "$(DEBUG)$(V)" ] && export GCRYPT_DEBUG=1; \
+	 export GIT_CONFIG_PARAMETERS="'gcrypt.gpg-args=--pinentry-mode loopback --no-tty'"; \
+	 for test_script in tests/system-test*.sh; do \
+	     ./$$test_script || exit 1; \
+	 done
+
 .PHONY: test/system
-test/system: check/deps	##H Test system functionality
+test/system: check/deps	##H Run coverage tests (Dynamic Bash)
+	@echo "running system tests (coverage/bash)..."
 	@rm -rf $(COV_SYSTEM)
 	@mkdir -p $(COV_SYSTEM)
 	@export GPG_TTY=$$(tty); \
 	 [ -n "$(DEBUG)$(V)" ] && export GCRYPT_DEBUG=1 && print_warn "Debug mode enabled"; \
 	 export GIT_CONFIG_PARAMETERS="'gcrypt.gpg-args=--pinentry-mode loopback --no-tty'"; \
-	 export COV_DIR=$(COV_SYSTEM); \
 	 sed -i 's|^#!/bin/sh|#!/bin/bash|' git-remote-gcrypt; \
 	 trap "sed -i 's|^#!/bin/bash|#!/bin/sh|' git-remote-gcrypt" EXIT; \
 	 for test_script in tests/system-test*.sh; do \
@@ -130,7 +140,7 @@ endef
 .PHONY: test/cov
 test/cov:	##H Show coverage gaps
 	@err=0; \
-	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt,35) || err=1; \
+	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt,60) || err=1; \
 	$(call CHECK_COVERAGE,$(COV_INSTALL),install.sh,80) || err=1; \
 	exit $$err
 

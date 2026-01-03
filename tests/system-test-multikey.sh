@@ -298,5 +298,7 @@ print_info "Step 7: Reproduction Step - Push with buried key..."
 	fi
 } | indent
 
-[ -n "${COV_DIR:-}" ] && print_success "OK. Report: file://${COV_DIR}/index.html"
+if [ -n "${COV_DIR:-}" ]; then
+    print_success "OK. Report: file://${COV_DIR}/index.html"
+fi
 exit 0

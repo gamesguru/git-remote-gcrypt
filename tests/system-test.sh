@@ -233,4 +233,8 @@ print_info "Step 5: Cloning the second repository using gitception:"
         "${tempdir}/first" "${tempdir}/third" 2>&1 | indent
 } | indent
 
-[ -n "${COV_DIR:-}" ] && print_success "OK. Report: file://${COV_DIR}/index.html"
+
+if [ -n "${COV_DIR:-}" ]; then
+    print_success "OK. Report: file://${COV_DIR}/index.html"
+fi
+exit 0
