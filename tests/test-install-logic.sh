@@ -34,7 +34,7 @@ assert_version() {
 	unset DESTDIR
 
 	# Run the installer
-	"$INSTALLER" >/dev/null 2>&1 || {
+	"bash" "$INSTALLER" >/dev/null 2>&1 || {
 		echo "Installer failed unexpectedly"
 		return 1
 	}
@@ -57,7 +57,7 @@ assert_version() {
 # --- TEST 1: Strict Metadata Requirement ---
 echo "--- Test 1: Fail without Metadata ---"
 rm -rf debian redhat
-if "$INSTALLER" >/dev/null 2>&1; then
+if "bash" "$INSTALLER" >/dev/null 2>&1; then
 	print_err "FAILED: Installer should have exited 1 without debian/changelog"
 	exit 1
 else
@@ -91,7 +91,7 @@ rm -rf "${SANDBOX:?}/usr"
 export DESTDIR="$SANDBOX/pkg_root"
 export prefix="/usr"
 
-"$INSTALLER" >/dev/null 2>&1
+"bash" "$INSTALLER" >/dev/null 2>&1
 
 if [ -f "$SANDBOX/pkg_root/usr/bin/git-remote-gcrypt" ]; then
 	printf "  ✓ %s\n" "DESTDIR honored"

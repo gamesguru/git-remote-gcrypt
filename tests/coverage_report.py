@@ -6,6 +6,7 @@ Created on Wed Dec 31 08:57:33 2025
 """
 
 import os
+import sys
 import textwrap
 import xml.etree.ElementTree as E
 
@@ -32,11 +33,22 @@ if total_lines > 0:
     print(f"{COLOR}Coverage: {pct:.1f}% ({COVERED}/{total_lines})\033[0m")
 else:
     print(f"Coverage: N/A (0 lines found for {patt})")
+    if int(os.environ.get("FAIL_UNDER") or 0) > 0:
+        print(f"\033[31;1mFAIL: Coverage N/A is below threshold {os.environ.get('FAIL_UNDER')}%\033[0m")
+        sys.exit(1)
+
 
 if missed:
+    missed.sort(key=int)  # Sort for deterministic output
     print(f"\033[31;1m{len(missed)} missing lines\033[0m in {patt}:")
     print(
         textwrap.fill(
             ", ".join(missed), width=72, initial_indent="  ", subsequent_indent="  "
         )
     )
+
+fail_under = int(os.environ.get("FAIL_UNDER") or 0)
+if total_lines > 0:
+    if pct < fail_under:
+        print(f"\033[31;1mFAIL: Coverage {pct:.1f}% is below threshold {fail_under}%\033[0m")
+        sys.exit(1)

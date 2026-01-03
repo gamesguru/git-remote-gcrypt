@@ -25,27 +25,28 @@ _all: lint test/installer test/system
 	@$(call print_success,All checks passed!)
 
 .PHONY: vars
-vars:	##H Debug: Print project variables
-	@$(foreach v,$(sort $(.VARIABLES)), \
-		$(if $(filter file command line override,$(origin $(v))), \
-			$(info $(v) = $($(v))) \
+vars:	##H Display all Makefile variables (simple)
+	@echo "=== Makefile Variables (file/command/line origin) ==="
+	@$(foreach V,$(sort $(.VARIABLES)), \
+		$(if $(filter file command line,$(origin $(V))), \
+			$(info $(shell printf "%-30s" "$(V)") = $(value $(V))) \
 		) \
 	)
 
 define print_err
-	printf "\033[1;31m%s\033[0m\n" "$(1)"
+printf "\033[1;31m%s\033[0m\n" "$(1)"
 endef
 
 define print_warn
-	printf "\033[1;33m%s\033[0m\n" "$(1)"
+printf "\033[1;33m%s\033[0m\n" "$(1)"
 endef
 
 define print_success
-	printf "\033[1;34m✓ %s\033[0m\n" "$(1)"
+printf "\033[1;34m✓ %s\033[0m\n" "$(1)"
 endef
 
 define print_info
-	printf "\033[1;36m%s\033[0m\n" "$(1)"
+printf "\033[1;36m%s\033[0m\n" "$(1)"
 endef
 
 
@@ -92,39 +93,61 @@ test/installer: check/deps	##H Test installer logic
 	     ./tests/test-install-logic.sh
 
 
+.PHONY: test/purity
+test/purity: check/deps	##H Run logic tests with native shell (As Shipped Integrity Check)
+	@echo "running system tests (native /bin/sh)..."
+	@export GPG_TTY=$$(tty); \
+	 [ -n "$(DEBUG)$(V)" ] && export GCRYPT_DEBUG=1; \
+	 export GIT_CONFIG_PARAMETERS="'gcrypt.gpg-args=--pinentry-mode loopback --no-tty'"; \
+	 for test_script in tests/system-test*.sh; do \
+	     ./$$test_script || exit 1; \
+	 done
+
 .PHONY: test/system
-test/system: check/deps	##H Test system functionality
+test/system: check/deps	##H Run coverage tests (Dynamic Bash)
+	@echo "running system tests (coverage/bash)..."
 	@rm -rf $(COV_SYSTEM)
 	@mkdir -p $(COV_SYSTEM)
 	@export GPG_TTY=$$(tty); \
 	 [ -n "$(DEBUG)$(V)" ] && export GCRYPT_DEBUG=1 && print_warn "Debug mode enabled"; \
 	 export GIT_CONFIG_PARAMETERS="'gcrypt.gpg-args=--pinentry-mode loopback --no-tty'"; \
-	 export COV_DIR=$(COV_SYSTEM); \
+	 sed -i 's|^#!/bin/sh|#!/bin/bash|' git-remote-gcrypt; \
+	 trap "sed -i 's|^#!/bin/bash|#!/bin/sh|' git-remote-gcrypt" EXIT; \
 	 for test_script in tests/system-test*.sh; do \
 	     kcov --include-path=$(PWD) \
 	          --include-pattern=git-remote-gcrypt \
 	          --exclude-path=$(PWD)/.git,$(PWD)/tests \
 	          $(COV_SYSTEM) \
-	          ./$$test_script || true; \
-	 done
+	          ./$$test_script; \
+	 done; \
+	 sed -i 's|^#!/bin/bash|#!/bin/sh|' git-remote-gcrypt; \
+	 trap - EXIT
 
 
 define CHECK_COVERAGE
-@XML_FILE=$$(find $(1) -name "cobertura.xml" 2>/dev/null | grep "merged" | head -n 1); \
+XML_FILE=$$(find $(1) -name "cobertura.xml" 2>/dev/null | grep "merged" | head -n 1); \
 [ -z "$$XML_FILE" ] && XML_FILE=$$(find $(1) -name "cobertura.xml" 2>/dev/null | head -n 1); \
 if [ -f "$$XML_FILE" ]; then \
 	echo ""; \
 	echo "Report for: file://$$(dirname "$$XML_FILE")/index.html"; \
-	XML_FILE="$$XML_FILE" PATT="$(2)" python3 tests/coverage_report.py; \
-	fi
+	XML_FILE="$$XML_FILE" PATT="$(2)" FAIL_UNDER="$(3)" python3 tests/coverage_report.py; \
+else \
+	echo ""; \
+	echo "Error: No coverage report found for $(2) in $(1)"; \
+	exit 1; \
+fi
 endef
 
 .PHONY: test/cov
 test/cov:	##H Show coverage gaps
-	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt)
-	$(call CHECK_COVERAGE,$(COV_INSTALL),install.sh)
+	@err=0; \
+	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt,60) || err=1; \
+	$(call CHECK_COVERAGE,$(COV_INSTALL),install.sh,80) || err=1; \
+	exit $$err
 
 
+# Version from git describe (or fallback)
+__VERSION__ := $(shell git describe --tags --always --dirty 2>/dev/null || echo "@@DEV_VERSION@@")
 
 .PHONY: install/, install
 install/: install
