@@ -7,6 +7,7 @@ shopt -s inherit_errexit
 # Helpers
 print_info() { printf "\033[1;36m%s\033[0m\n" "$1"; }
 print_success() { printf "\033[1;34m✓ %s\033[0m\n" "$1"; }
+print_warn() { printf "\033[1;33m%s\033[0m\n" "$1"; }
 print_err() { printf "\033[1;31m%s\033[0m\n" "$1"; }
 
 
@@ -368,16 +369,20 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
     cd "${tempdir}"
     
     # Save the manifest file
-    manifest_file="${tempdir}/second.git/objects/pack/91bd0c092128cf2e60e1a608c31e92caf1f9c1595f83f2890ef17c0e4881aa0a"
-    if [ -f "$manifest_file" ]; then
-        cp "$manifest_file" "${tempdir}/manifest_backup"
-        rm "$manifest_file"   # <--- Actually make it unavailable!
+    # Find and delete manifest files (hashes at root of repo for local transport)
+    # We look for files with 64 hex characters in the repo directory
+    manifests=$(find "${tempdir}/second.git" -maxdepth 1 -type f -regextype posix-egrep -regex ".*/[0-9a-f]{56,64}")
+    
+    if [ -n "$manifests" ]; then
+        for m in $manifests; do
+             cp "$m" "${tempdir}/manifest_backup_$(basename "$m")"
+             rm "$m"
+        done
         manifest_saved=true
     else
-        # For gitception, manifest is stored differently or we can't easily simulate this
+        # For gitception or if structure differs
         manifest_saved=false
-        print_info "Skipping manifest backup (gitception storage) - Cannot simulate network failure accurately here"
-        # If we can't simulate failure, we should probably skip the failure check or fail the test setup
+        print_warn "Skipping manifest backup - No manifest file found to delete. This might make the test pass falsely (or fail to check protection)."
     fi
     
     # Create a fresh clone to test with
@@ -417,9 +422,16 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
         exit 1
     fi
     
-    # Restore manifest if we backed it up
+    # Restore manifest(s) if we backed them up
     if [ "$manifest_saved" = true ]; then
-        cp "${tempdir}/manifest_backup" "$manifest_file"
+        for f in "${tempdir}"/manifest_backup_*; do
+             # extract original filename from backup filename
+             # basename is manifest_backup_<hash>
+             # we want to restore to ${tempdir}/second.git/<hash>
+             fname=$(basename "$f")
+             orig_name=${fname#manifest_backup_}
+             cp "$f" "${tempdir}/second.git/${orig_name}"
+        done
     fi
 } | indent
 
