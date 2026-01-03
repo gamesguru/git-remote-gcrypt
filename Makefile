@@ -117,7 +117,7 @@ test/system: check/deps	##H Run coverage tests (Dynamic Bash)
 	          --include-pattern=git-remote-gcrypt \
 	          --exclude-path=$(PWD)/.git,$(PWD)/tests \
 	          $(COV_SYSTEM) \
-	          ./$$test_script || true; \
+	          ./$$test_script; \
 	 done; \
 	 sed -i 's|^#!/bin/bash|#!/bin/sh|' git-remote-gcrypt; \
 	 trap - EXIT

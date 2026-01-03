@@ -413,7 +413,7 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
             exit 1
         fi
     else
-        print_err "Push SUCCEEDED but should have FAILED (Overwrite risk!)"
+        print_err "Push SUCCEEDED without --force (Safety check failed)."
         exit 1
     fi
     
