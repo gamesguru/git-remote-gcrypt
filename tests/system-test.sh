@@ -371,11 +371,13 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
     manifest_file="${tempdir}/second.git/objects/pack/91bd0c092128cf2e60e1a608c31e92caf1f9c1595f83f2890ef17c0e4881aa0a"
     if [ -f "$manifest_file" ]; then
         cp "$manifest_file" "${tempdir}/manifest_backup"
+        rm "$manifest_file"   # <--- Actually make it unavailable!
         manifest_saved=true
     else
-        # For gitception, manifest is stored differently
+        # For gitception, manifest is stored differently or we can't easily simulate this
         manifest_saved=false
-        print_info "Skipping manifest backup (gitception storage)"
+        print_info "Skipping manifest backup (gitception storage) - Cannot simulate network failure accurately here"
+        # If we can't simulate failure, we should probably skip the failure check or fail the test setup
     fi
     
     # Create a fresh clone to test with
@@ -390,24 +392,24 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
     
     # Try to push to the EXISTING remote
     # Since this fresh repo has no gcrypt-id, it could be dangerous
-    output_file="${tempdir}/network_guard_output"
+    step9_output="${tempdir}/network_guard_output"
     set +e
     (
         set -x
         git push "gcrypt::${tempdir}/second.git#${default_branch}" \
             "${default_branch}:refs/heads/test-network-guard" 2>&1
-    ) | tee "${output_file}"
+    ) | tee "${step9_output}"
     push_result=$?
     set -e
     
     # The push should FAIL now because we require --force for missing manifests
     if [ $push_result -ne 0 ]; then
         print_success "Push failed (PROTECTED against accidental overwrite)."
-        if grep -q "Use --force to create valid new repository" "${output_file}"; then
+        if grep -q "Use --force to create valid new repository" "${step9_output}"; then
             print_success "Correct error message received."
         else
             print_err "Wrong error message!"
-            cat "${output_file}" | indent
+            cat "${step9_output}" | indent
             exit 1
         fi
     else
@@ -439,15 +441,15 @@ print_info "Step 10: New Repo Safety Test (Require Force):"
     set +e
     (
         git push "gcrypt::${missing_remote_url}" "${default_branch}" 2>&1
-    ) > "${output_file}.step10.fail"
+    ) > "step10.fail"
     rc=$?
     set -e
     
     if [ $rc -ne 0 ]; then
-        if grep -q "Use --force to create valid new repository" "${output_file}.step10.fail"; then
+        if grep -q "Use --force to create valid new repository" "step10.fail"; then
             print_success "Push correctly BLOCKED without force."
         else
-            cat "${output_file}.step10.fail" | indent
+            cat "step10.fail" | indent
             print_err "Push failed but with wrong error message!"
             exit 1
         fi
@@ -460,14 +462,14 @@ print_info "Step 10: New Repo Safety Test (Require Force):"
     set +e
     (
         git push --force "gcrypt::${missing_remote_url}" "${default_branch}" 2>&1
-    ) > "${output_file}.step10.succ"
+    ) > "step10.succ"
     rc=$?
     set -e
     
     if [ $rc -eq 0 ]; then
         print_success "Push succeeded with force."
     else
-        cat "${output_file}.step10.succ" | indent
+        cat "step10.succ" | indent
         print_err "Push failed even with force!"
         exit 1
     fi

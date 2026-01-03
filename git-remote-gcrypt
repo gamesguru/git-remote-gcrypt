@@ -161,7 +161,6 @@ Refslist=
 Packlist=
 Keeplist=
 Extnlist=
-Manifest_version=
 Repack_limit=25
 
 Recipients=
@@ -949,7 +948,7 @@ do_push()
 	# shellcheck disable=SC3043
 	local r_revlist="" pack_id="" key_="" obj_="" src_="" dst_="" \
 		r_pack_delete="" tmp_encrypted="" tmp_objlist="" tmp_manifest="" \
-		force_passed=""
+		force_passed=true
 
 	ensure_connected
 
