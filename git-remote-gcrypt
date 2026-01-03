@@ -984,7 +984,6 @@ EOF
 
 	if iseq "$Did_find_repo" "no"
 	then
-		echo_info "DEBUG: matched Did_find_repo=no. force_passed=$force_passed"
 		if [ "$force_passed" = true ]
 		then
 			make_new_repo
