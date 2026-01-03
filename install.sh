@@ -14,6 +14,7 @@ install_v() {
 
 # --- VERSION DETECTION ---
 if [ -f /etc/os-release ]; then
+	# shellcheck disable=SC1091
 	. /etc/os-release
 	OS_IDENTIFIER=$ID # Linux
 elif command -v uname >/dev/null; then
@@ -25,7 +26,7 @@ fi
 
 # Get base version then append OS identifier
 if [ -d .git ] && command -v git >/dev/null; then
-	VERSION=$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo "sha_unknown")
+	VERSION=$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo "dev")
 else
 	if [ ! -f debian/changelog ]; then
 		echo "Error: debian/changelog not found (and not a git repo)" >&2
@@ -43,7 +44,7 @@ mkdir -p "$BUILD_DIR"
 trap 'rm -rf "$BUILD_DIR"' EXIT
 
 # Placeholder injection
-sed "s/@@DEV_VERSION@@/$VERSION/g" git-remote-gcrypt >"$BUILD_DIR/git-remote-gcrypt"
+sed "s|@@DEV_VERSION@@|$VERSION|g" git-remote-gcrypt >"$BUILD_DIR/git-remote-gcrypt"
 
 # --- INSTALLATION ---
 # This is where the 'Permission denied' happens if not sudo
