@@ -20,10 +20,9 @@ random_data_per_file=1024 # Reduced size for faster testing (1KB)
 default_branch="main"
 test_user_name="git-remote-gcrypt"
 test_user_email="git-remote-gcrypt@example.com"
-pack_size_limit="12m"
 
 readonly num_commits files_per_commit random_source random_data_per_file \
-	default_branch test_user_name test_user_email pack_size_limit
+	default_branch test_user_name test_user_email
 
 # ----------------- Helper Functions -----------------
 indent() {
@@ -65,6 +64,7 @@ export PATH
 
 # Clean GIT environment
 git_env=$(env | sed -n 's/^\(GIT_[^=]*\)=.*$/\1/p')
+# shellcheck disable=SC2086
 IFS=$'\n' unset ${git_env}
 
 # GPG Setup
@@ -192,8 +192,7 @@ print_info "Step 5: Unhappy Path - Test clone with NO matching keys..."
 	# We expect this to FAIL
 	(
 		set +e
-		git clone -b "${default_branch}" "gcrypt::${tempdir}/second.git#${default_branch}" -- "${tempdir}/fail_test"
-		if [ $? -eq 0 ]; then
+		if git clone -b "${default_branch}" "gcrypt::${tempdir}/second.git#${default_branch}" -- "${tempdir}/fail_test"; then
 			print_info "ERROR: Clone succeeded unexpectedly with empty keyring!"
 			exit 1
 		fi

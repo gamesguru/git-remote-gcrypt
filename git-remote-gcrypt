@@ -196,7 +196,7 @@ pipefail()
 	"$@" || { echo_info "'$1' failed!"; kill $$; exit 1; }
 }
 
-isurl() { isnull "${2%%$1://*}"; }
+isurl() { isnull "${2%%"$1"://*}"; }
 islocalrepo() { isnull "${1##/*}" && [ ! -e "$1/HEAD" ]; }
 
 xgrep() { command grep "$@" || : ; }
@@ -211,7 +211,7 @@ xgrep() { command grep "$@" || : ; }
 setvar()
 {
 	isnull "${1##@*}" || echo_die "Missing @ for return variable: $1"
-	eval ${1#@}=\$2
+	eval "${1#@}"=\$2
 }
 
 Newline="
@@ -222,7 +222,7 @@ append_to()
 {
 	# shellcheck disable=SC3043
 	local f_append_tmp_=""
-	eval f_append_tmp_=\$${1#@}
+	eval f_append_tmp_=\$"${1#@}"
 	isnull "$f_append_tmp_" || f_append_tmp_=$f_append_tmp_$Newline
 	setvar "$1" "$f_append_tmp_$2"
 }
@@ -240,7 +240,7 @@ pick_fields_1_2()
 	done <<EOF
 $2
 EOF
-	setvar "$1" "${f_ret#$Newline}"
+	setvar "$1" "${f_ret#"$Newline"}"
 }
 
 # Take all lines matching $2 (full line)
@@ -257,9 +257,9 @@ filter_to()
 	IFS=$Newline
 	for f_line in $3
 	do
-		$f_neg isnonnull "${f_line##$2}" || f_ret=$f_ret$f_line$Newline
+		$f_neg isnonnull "${f_line##"$2"}" || f_ret=$f_ret$f_line$Newline
 	done
-	setvar "$1" "${f_ret%$Newline}"
+	setvar "$1" "${f_ret%"$Newline"}"
 }
 
 # Output the number of lines in $1
@@ -290,8 +290,12 @@ gitception_get()
 	[ -e "$fet_head" ] && command mv -f "$fet_head" "$fet_head.$$~" || :
 	git fetch -q -f "$1" "$Gref_rbranch:$Gref" >/dev/null &&
 		obj_id="$(git ls-tree "$Gref" | xgrep -E '\b'"$2"'$' | awk '{print $3}')" &&
-		isnonnull "$obj_id" && git cat-file blob "$obj_id" && ret_=: ||
-		{ ret_=false && : ; }
+		if isnonnull "$obj_id" && git cat-file blob "$obj_id"; then
+			ret_=:
+		else
+			ret_=false
+			:
+		fi
 	[ -e "$fet_head.$$~" ] && command mv -f "$fet_head.$$~" "$fet_head" || :
 	$ret_
 }
@@ -310,6 +314,7 @@ EOF
 # Get 'tree' from $1, change file $2 to obj id $3
 update_tree()
 {
+	# shellcheck disable=SC3043
 	local tab_="	"
 	# $2 is a filename from the repo format
 	(set +e;
@@ -322,7 +327,8 @@ update_tree()
 # depends on previous GET to set $Gref and depends on PUT_FINAL later
 gitception_put()
 {
-	local obj_id= tree_id= commit_id=
+	# shellcheck disable=SC3043
+	local obj_id="" tree_id="" commit_id=""
 	obj_id=$(git hash-object -w --stdin) &&
 		tree_id=$(update_tree "$Gref" "$2" "$obj_id") &&
 		commit_id=$(anon_commit "$tree_id") &&
@@ -333,7 +339,8 @@ gitception_put()
 # depends on previous GET like put
 gitception_remove()
 {
-	local tree_id= commit_id= tab_="	"
+	# shellcheck disable=SC3043
+	local tree_id="" commit_id="" tab_="	"
 	# $2 is a filename from the repo format
 	tree_id=$(git ls-tree "$Gref" | xgrep -v -E '\b'"$2"'$' | git mktree) &&
 		commit_id=$(anon_commit "$tree_id") &&
@@ -342,7 +349,8 @@ gitception_remove()
 
 gitception_new_repo()
 {
-	local commit_id= empty_tree=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+	# shellcheck disable=SC3043
+	local commit_id="" empty_tree=4b825dc642cb6eb9a060e54bf8d69288fbee4904
 	# get any file to update Gref, and if it's not updated we create empty
 	git update-ref -d "$Gref" || :
 	gitception_get "$1" "x" 2>/dev/null >&2 || :
@@ -391,6 +399,7 @@ PUT()
 		(
 			if [ -n "${GCRYPT_TRACE:-}" ]; then set -x; fi
 			exec 0</dev/null
+			# shellcheck disable=SC2086
 			rsync $Conf_rsync_put_flags -I -W "$3" "$(rsynclocation "$1")"/"$2" >&2
 		)
 	elif isurl rclone "$1"
@@ -428,6 +437,7 @@ PUTREPO()
 		(
 			if [ -n "${GCRYPT_TRACE:-}" ]; then set -x; fi
 			exec 0</dev/null
+			# shellcheck disable=SC2086
 			rsync $Conf_rsync_put_flags -q -r --exclude='*' \
 			"$Localdir/" "$(rsynclocation "$1")" >&2
 		)
@@ -445,7 +455,8 @@ PUTREPO()
 # For repo $1, delete all newline-separated files in $2
 REMOVE()
 {
-	local fn_=
+	# shellcheck disable=SC3043
+	local fn_=""
 	print_debug "REMOVE $1 $2"
 	if isurl sftp "$1"
 	then
@@ -516,7 +527,8 @@ PRIVENCRYPT()
 # $1 is the match for good signature, $2 is the textual signers list
 PRIVDECRYPT()
 {
-	local status_=
+	# shellcheck disable=SC3043
+	local status_=""
 	exec 4>&1 &&
 	status_=$(rungpg --status-fd 3 -q -d 3>&1 1>&4 || {
 		rc=$?
@@ -544,7 +556,8 @@ genkey()
 
 gpg_hash()
 {
-	local hash_=
+	# shellcheck disable=SC3043
+	local hash_=""
 	hash_=$(rungpg --with-colons --print-md "$1" | tr A-F a-f)
 	hash_=${hash_#:*:}
 	xecho "${hash_%:}"
@@ -589,7 +602,8 @@ make_new_repo()
 # $1 return var for goodsig match, $2 return var for signers text
 read_config()
 {
-	local recp_= r_tail= r_keyinfo= r_keyfpr= gpg_list= cap_= conf_part= good_sig= signers_=
+	# shellcheck disable=SC3043,SC2034
+	local recp_="" r_tail="" r_keyinfo="" r_keyfpr="" gpg_list="" cap_="" conf_part="" good_sig="" signers_=""
 	Conf_signkey=$(git config --get "remote.$NAME.gcrypt-signingkey" '.+' ||
 		git config --path user.signingkey || :)
 	conf_part=$(git config --get "remote.$NAME.gcrypt-participants" '.+' ||
@@ -632,13 +646,13 @@ read_config()
 		keyid_=$(xfeed "$r_keyinfo" cut -f 5 -d :)
 		fprid_=$(xfeed "$r_keyfpr" cut -f 10 -d :)
 		print_debug "Resolved participant $recp_ to fpr: $fprid_"
-
-		isnonnull "$fprid_" &&
-		signers_="$signers_ $keyid_" &&
-		append_to @good_sig "^\[GNUPG:\] VALIDSIG .*$fprid_$" || {
+		if isnonnull "$fprid_"; then
+			signers_="$signers_ $keyid_"
+			append_to @good_sig "^\[GNUPG:\] VALIDSIG .*$fprid_$"
+		else
 			echo_info "WARNING: Skipping missing key $recp_"
 			continue
-		}
+		fi
 		# Check 'E'ncrypt capability
 		cap_=$(xfeed "$r_keyinfo" cut -f 12 -d :)
 		if ! iseq "${cap_#*E}" "$cap_"; then
@@ -665,8 +679,9 @@ read_config()
 
 ensure_connected()
 {
-	local manifest_= r_repoid= r_name= url_frag= r_sigmatch= r_signers= \
-		tmp_manifest= tmp_stderr=
+	# shellcheck disable=SC3043
+	local manifest_="" r_repoid="" r_name="" url_frag="" r_sigmatch="" r_signers="" \
+		tmp_manifest="" tmp_stderr=""
 
 	if isnonnull "$Did_find_repo"
 	then
@@ -723,9 +738,11 @@ ensure_connected()
 
 	Did_find_repo=yes
 	echo_info "Decrypting manifest"
-	manifest_=$(PRIVDECRYPT "$r_sigmatch" "$r_signers" < "$tmp_manifest") &&
-		isnonnull "$manifest_" ||
+	if ! manifest_=$(PRIVDECRYPT "$r_sigmatch" "$r_signers" < "$tmp_manifest") || \
+		isnull "$manifest_"
+	then
 		echo_die "Failed to decrypt manifest!"
+	fi
 	rm -f "$tmp_manifest"
 
 	filter_to @Refslist "$Hex40 *" "$manifest_"
@@ -760,11 +777,13 @@ ensure_connected()
 # $3 the key
 get_verify_decrypt_pack()
 {
-	local rcv_id= tmp_encrypted=
+	# shellcheck disable=SC3043
+	local rcv_id="" tmp_encrypted=""
 	tmp_encrypted="$Tempdir/packF"
 	GET "$URL" "$2" "$tmp_encrypted" &&
-	rcv_id=$(gpg_hash "$1" < "$tmp_encrypted") &&
-	iseq "$rcv_id" "$2" || echo_die "Packfile $2 does not match digest!"
+	if ! rcv_id=$(gpg_hash "$1" < "$tmp_encrypted") || isnoteq "$rcv_id" "$2"; then
+		echo_die "Packfile $2 does not match digest!"
+	fi
 	DECRYPT "$3" < "$tmp_encrypted"
 	rm -f "$tmp_encrypted"
 }
@@ -773,7 +792,8 @@ get_verify_decrypt_pack()
 # $1 destdir (when repack, else "")
 get_pack_files()
 {
-	local pack_id= r_pack_key_line= htype_= pack_= key_=
+	# shellcheck disable=SC3043
+	local pack_id="" r_pack_key_line="" htype_="" pack_="" key_=""
 	while IFS=': ' read -r _ htype_ pack_ # <<here-document
 	do
 		isnonnull "$pack_" || continue
@@ -781,9 +801,9 @@ get_pack_files()
 		# Get the Packlist line with the key
 		pack_id=":${htype_}:$pack_"
 		filter_to @r_pack_key_line "pack $pack_id *" "$Packlist"
-		key_=${r_pack_key_line#pack $pack_id }
+		key_=${r_pack_key_line#pack "$pack_id" }
 
-		if isnonnull "${pack_##$Hex40*}" ||
+		if isnonnull "${pack_##"$Hex40"*}" ||
 			isnoteq "$htype_" SHA256 && isnoteq "$htype_" SHA224 &&
 			isnoteq "$htype_" SHA384 && isnoteq "$htype_" SHA512
 		then
