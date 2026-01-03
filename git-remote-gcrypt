@@ -34,30 +34,30 @@ VERSION="@@DEV_VERSION@@"
 
 # Help function
 show_help() {
-	cat >&2 <<-EOF
-	git-remote-gcrypt version $VERSION
-	GPG-encrypted git remote helper
+	cat >&2 <<EOF
+git-remote-gcrypt version $VERSION
+GPG-encrypted git remote helper
 
-	Usage: Automatically invoked by git when using gcrypt:: URLs
-	       See: man git-remote-gcrypt
-	       Or:  https://github.com/spwhitton/git-remote-gcrypt
+Usage: Automatically invoked by git when using gcrypt:: URLs
+       See: man git-remote-gcrypt
+       Or:  https://github.com/spwhitton/git-remote-gcrypt
 
-	Options:
-	  -h, --help       Show this help message
-	  -v, --version    Show version information
-	  --check <URL>    Check if URL is a gcrypt repository
+Options:
+  -h, --help       Show this help message
+  -v, --version    Show version information
+  --check <URL>    Check if URL is a gcrypt repository
 
-	Git Protocol Commands (for debugging):
-	  capabilities     List remote helper capabilities
-	  list             List refs in remote repository
-	  push <refspec>   Push refs to remote repository
-	  fetch <sha> <ref> Fetch refs from remote repository
+Git Protocol Commands (for debugging):
+  capabilities     List remote helper capabilities
+  list             List refs in remote repository
+  push <refspec>   Push refs to remote repository
+  fetch <sha> <ref> Fetch refs from remote repository
 
-	Environment Variables:
-	  GCRYPT_DEBUG=1        Enable verbose debug logging to stderr
-	  GCRYPT_TRACE=1        Enable shell tracing (set -x) for rsync/curl commands
-	  GCRYPT_FULL_REPACK=1  Force full repack when pushing
-	EOF
+Environment Variables:
+  GCRYPT_DEBUG=1        Enable verbose debug logging to stderr
+  GCRYPT_TRACE=1        Enable shell tracing (set -x) for rsync/curl commands
+  GCRYPT_FULL_REPACK=1  Force full repack when pushing
+EOF
 }
 
 # Parse flags
@@ -82,6 +82,9 @@ while getopts "hv-:" opt; do
 					echo "git-remote-gcrypt version $VERSION" >&2
 					exit 0
 					;;
+				check)
+					# Allow --check to pass through to the main logic at the bottom
+					;;
 				*)
 					echo "Unknown option: --$OPTARG" >&2
 					exit 1
@@ -99,45 +102,45 @@ shift $((OPTIND - 1))
 case "${1:-}" in
 	capabilities)
 		if [ "${2:-}" = "-h" ] || [ "${2:-}" = "--help" ]; then
-			cat >&2 <<-EOF
-			capabilities - List git remote helper capabilities
+			cat >&2 <<EOF
+capabilities - List git remote helper capabilities
 
-			Usage: echo "capabilities" | git-remote-gcrypt <remote-url>
-			       Invoked by git to query what operations this helper supports.
-			EOF
+Usage: echo "capabilities" | git-remote-gcrypt <remote-url>
+       Invoked by git to query what operations this helper supports.
+EOF
 			exit 0
 		fi
 		;;
 	list)
 		if [ "${2:-}" = "-h" ] || [ "${2:-}" = "--help" ]; then
-			cat >&2 <<-EOF
-			list - List refs in remote repository
+			cat >&2 <<EOF
+list - List refs in remote repository
 
-			Usage: echo "list" | git-remote-gcrypt <remote-url>
-			       Invoked by git to list available refs (branches/tags).
-			EOF
+Usage: echo "list" | git-remote-gcrypt <remote-url>
+       Invoked by git to list available refs (branches/tags).
+EOF
 			exit 0
 		fi
 		;;
 	push)
 		if [ "${2:-}" = "-h" ] || [ "${2:-}" = "--help" ]; then
-			cat >&2 <<-EOF
-			push - Push refs to remote repository
+			cat >&2 <<EOF
+push - Push refs to remote repository
 
-			Usage: echo "push <src>:<dst>" | git-remote-gcrypt <remote-url>
-			       Invoked by git to push local refs to the remote.
-			EOF
+Usage: echo "push <src>:<dst>" | git-remote-gcrypt <remote-url>
+       Invoked by git to push local refs to the remote.
+EOF
 			exit 0
 		fi
 		;;
 	fetch)
 		if [ "${2:-}" = "-h" ] || [ "${2:-}" = "--help" ]; then
-			cat >&2 <<-EOF
-			fetch - Fetch refs from remote repository
+			cat >&2 <<EOF
+fetch - Fetch refs from remote repository
 
-			Usage: echo "fetch <sha> <ref>" | git-remote-gcrypt <remote-url>
-			       Invoked by git to fetch objects from the remote.
-			EOF
+Usage: echo "fetch <sha> <ref>" | git-remote-gcrypt <remote-url>
+       Invoked by git to fetch objects from the remote.
+EOF
 			exit 0
 		fi
 		;;

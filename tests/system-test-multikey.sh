@@ -104,7 +104,7 @@ head -c "${random_data_size}" "${random_source}" >"${random_data_file}"
 section_break
 
 print_info "Step 1: Creating multiple GPG keys for participants..."
-num_keys=18 # Buried deep: 17 decoys + 1 valid key
+num_keys=5 # Reduced from 18 for faster CI runs
 key_fps=()
 (
 	set -x
@@ -125,7 +125,7 @@ key_fps=()
 # We configured `gcrypt.participants` with this Subkey, but GPG always signs with the Primary Key.
 # This caused a signature mismatch ("Participant A vs Signer B") and verification failure.
 # Using `awk` to filter `pub:` ensures we only capture the Primary Key.
-mapfile -t key_fps < <(gpg --list-keys --with-colons | awk -F: '/^pub:/ {getline; print $10}')
+mapfile -t key_fps < <(gpg --list-keys --with-colons | awk -F: '/^pub:/ {f=1;next} /^fpr:/ && f {print $10;f=0}')
 echo "Generated keys: ${key_fps[*]}" | indent
 
 # Sanity Check

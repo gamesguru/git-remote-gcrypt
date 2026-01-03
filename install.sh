@@ -44,7 +44,7 @@ mkdir -p "$BUILD_DIR"
 trap 'rm -rf "$BUILD_DIR"' EXIT
 
 # Placeholder injection
-sed "s/@@DEV_VERSION@@/$VERSION/g" git-remote-gcrypt >"$BUILD_DIR/git-remote-gcrypt"
+sed "s|@@DEV_VERSION@@|$VERSION|g" git-remote-gcrypt >"$BUILD_DIR/git-remote-gcrypt"
 
 # --- INSTALLATION ---
 # This is where the 'Permission denied' happens if not sudo

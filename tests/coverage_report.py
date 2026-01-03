@@ -39,6 +39,7 @@ else:
 
 
 if missed:
+    missed.sort(key=int)  # Sort for deterministic output
     print(f"\033[31;1m{len(missed)} missing lines\033[0m in {patt}:")
     print(
         textwrap.fill(
