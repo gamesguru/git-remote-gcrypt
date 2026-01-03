@@ -166,7 +166,8 @@ Recipients=
 # xfeed: The most basic output function puts $1 into the stdin of $2..$#
 xfeed()
 {
-	local input_=
+	# shellcheck disable=SC3043
+	local input_=""
 	input_=$1; shift
 	"$@" <<EOF
 $input_
@@ -219,7 +220,8 @@ Newline="
 # $1 is return var, $2 is value appended with newline separator
 append_to()
 {
-	local f_append_tmp_=
+	# shellcheck disable=SC3043
+	local f_append_tmp_=""
 	eval f_append_tmp_=\$${1#@}
 	isnull "$f_append_tmp_" || f_append_tmp_=$f_append_tmp_$Newline
 	setvar "$1" "$f_append_tmp_$2"
@@ -230,8 +232,9 @@ append_to()
 # $2 input value
 pick_fields_1_2()
 {
-	local f_ret= f_one= f_two=
-	while read f_one f_two _ # from << here-document
+	# shellcheck disable=SC3043
+	local f_ret="" f_one="" f_two=""
+	while read -r f_one f_two _ # from << here-document
 	do
 		f_ret="$f_ret$f_one $f_two$Newline"
 	done <<EOF
@@ -248,7 +251,8 @@ EOF
 #  we instead remove all lines matching
 filter_to()
 {
-	local f_neg= f_line= f_ret= IFS=
+	# shellcheck disable=SC3043
+	local f_neg="" f_line="" f_ret="" IFS=""
 	isnoteq "$1" "!" || { f_neg=negate; shift; }
 	IFS=$Newline
 	for f_line in $3
@@ -261,8 +265,10 @@ filter_to()
 # Output the number of lines in $1
 line_count()
 {
-	local IFS=
+	# shellcheck disable=SC3043
+	local IFS=""
 	IFS=$Newline
+	# shellcheck disable=SC2086
 	set -- $1
 	xecho "$#"
 }
@@ -279,7 +285,8 @@ rsynclocation ()
 gitception_get()
 {
 	# Take care to preserve FETCH_HEAD
-	local ret_=: obj_id= fet_head="$GIT_DIR/FETCH_HEAD"
+	# shellcheck disable=SC3043
+	local ret_=: obj_id="" fet_head="$GIT_DIR/FETCH_HEAD"
 	[ -e "$fet_head" ] && command mv -f "$fet_head" "$fet_head.$$~" || :
 	git fetch -q -f "$1" "$Gref_rbranch:$Gref" >/dev/null &&
 		obj_id="$(git ls-tree "$Gref" | xgrep -E '\b'"$2"'$' | awk '{print $3}')" &&
@@ -498,6 +505,7 @@ EOF
 # Encrypt to recipients $1
 PRIVENCRYPT()
 {
+	# shellcheck disable=SC2086
 	set -- $1
 	if isnonnull "$Conf_signkey"; then
 		set -- "$@" -u "$Conf_signkey"
@@ -550,10 +558,10 @@ rungpg()
 	# gpg will fail to run when there is no controlling tty,
 	# due to trying to print messages to it, even if a gpg agent is set
 	# up. --no-tty fixes this.
-	if [ "x$GPG_AGENT_INFO" != "x" ]; then
-		${GPG} --no-tty $@
+	if [ "${GPG_AGENT_INFO:-}" != "" ]; then
+		${GPG} --no-tty "$@"
 	else
-		${GPG} $@
+		${GPG} "$@"
 	fi
 }
 
@@ -798,7 +806,8 @@ get_pack_files()
 # $1 return var for list of packfiles to delete
 repack_if_needed()
 {
-	local n_= m_= kline_= r_line= r_keep_packlist= r_del_list=
+	# shellcheck disable=SC3043
+	local n_="" m_="" kline_="" r_line="" r_keep_packlist="" r_del_list=""
 
 	isnonnull "$Packlist" || return 0
 
@@ -812,7 +821,8 @@ repack_if_needed()
 
 	n_=$(line_count "$Packlist")
 	m_=$(line_count "$Keeplist")
-	if iseq 0 "$(( $Repack_limit < ($n_ - $m_) ))"; then
+	# shellcheck disable=SC2004
+	if iseq 0 "$(( Repack_limit < (n_ - m_) ))"; then
 		return
 	fi
 	echo_info "Repacking remote $NAME, ..."
@@ -850,10 +860,11 @@ do_capabilities()
 
 do_list()
 {
-	local obj_id= ref_name= line_=
+	# shellcheck disable=SC3043
+	local obj_id="" ref_name="" line_=""
 	ensure_connected
 
-	xecho "$Refslist" | while read line_
+	xecho "$Refslist" | while read -r line_
 	do
 		isnonnull "$line_" || break
 		obj_id=${line_%% *}
@@ -872,7 +883,8 @@ do_list()
 do_fetch()
 {
 	# Download packs in the manifest that don't appear in have_packs
-	local pneed_= premote_=
+	# shellcheck disable=SC3043
+	local pneed_="" premote_=""
 
 	ensure_connected
 
@@ -897,9 +909,10 @@ do_push()
 	# Each git packfile is encrypted and then named for the encrypted
 	# file's hash. The manifest is updated with the pack id.
 	# The manifest is encrypted.
-	local r_revlist= pack_id= key_= obj_= src_= dst_= \
-		r_pack_delete= tmp_encrypted= tmp_objlist= tmp_manifest= \
-		force_passed=
+	# shellcheck disable=SC3043
+	local r_revlist="" pack_id="" key_="" obj_="" src_="" dst_="" \
+		r_pack_delete="" tmp_encrypted="" tmp_objlist="" tmp_manifest="" \
+		force_passed=""
 
 	ensure_connected
 
@@ -917,6 +930,7 @@ do_push()
 
 	while IFS=: read -r src_ dst_ # << +src:dst
 	do
+		# shellcheck disable=SC2046
 		if [ $(echo "$src_" | cut -c1) != + ]
 		then
 			force_passed=false
@@ -959,7 +973,7 @@ EOF
 	if [ -s "$tmp_objlist" ]
 	then
 		key_=$(genkey "$Packkey_bytes")
-		pack_id=$(export GIT_ALTERNATE_OBJECT_DIRECTORIES=$Tempdir;
+		pack_id=$(export GIT_ALTERNATE_OBJECT_DIRECTORIES="$Tempdir";
 			pipefail git pack-objects --stdout < "$tmp_objlist" |
 			pipefail ENCRYPT "$key_" |
 			tee "$tmp_encrypted" | gpg_hash "$Hashtype")
@@ -1058,7 +1072,8 @@ setup()
 # handle git-remote-helpers protocol
 gcrypt_main_loop()
 {
-	local input_= input_inner= r_args= temp_key=
+	# shellcheck disable=SC3043
+	local input_="" input_inner="" r_args="" temp_key=""
 
 	NAME=$1  # Remote name
 	URL=$2   # Remote URL
@@ -1067,7 +1082,7 @@ gcrypt_main_loop()
 
 	setup
 
-	while read input_
+	while read -r input_
 	do
 		case "$input_" in
 		capabilities)
@@ -1078,7 +1093,7 @@ gcrypt_main_loop()
 			;;
 		fetch\ *)
 			r_args=${input_##fetch }
-			while read input_inner
+			while read -r input_inner
 			do
 				case "$input_inner" in
 				fetch*)
@@ -1093,7 +1108,7 @@ gcrypt_main_loop()
 			;;
 		push\ *)
 			r_args=${input_##push }
-			while read input_inner
+			while read -r input_inner
 			do
 				case "$input_inner" in
 				push\ *)
@@ -1117,7 +1132,7 @@ gcrypt_main_loop()
 	done
 }
 
-if [ "x$1" = x--check ]
+if [ "$1" = --check ]
 then
 	NAME=dummy-gcrypt-check
 	URL=$2
@@ -1128,7 +1143,7 @@ then
 	then
 		exit 100
 	fi
-elif [ "x$1" = x--version ] || [ "x$1" = x-v ]; then
+elif [ "$1" = --version ] || [ "$1" = -v ]; then
 	echo "git-remote-gcrypt version $VERSION"
 	exit 0
 else

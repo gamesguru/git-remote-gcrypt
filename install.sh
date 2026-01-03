@@ -14,6 +14,7 @@ install_v() {
 
 # --- VERSION DETECTION ---
 if [ -f /etc/os-release ]; then
+	# shellcheck disable=SC1091
 	. /etc/os-release
 	OS_IDENTIFIER=$ID # Linux
 elif command -v uname >/dev/null; then
