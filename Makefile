@@ -110,19 +110,25 @@ test/system: check/deps	##H Test system functionality
 
 
 define CHECK_COVERAGE
-@XML_FILE=$$(find $(1) -name "cobertura.xml" 2>/dev/null | grep "merged" | head -n 1); \
+XML_FILE=$$(find $(1) -name "cobertura.xml" 2>/dev/null | grep "merged" | head -n 1); \
 [ -z "$$XML_FILE" ] && XML_FILE=$$(find $(1) -name "cobertura.xml" 2>/dev/null | head -n 1); \
 if [ -f "$$XML_FILE" ]; then \
 	echo ""; \
 	echo "Report for: file://$$(dirname "$$XML_FILE")/index.html"; \
 	XML_FILE="$$XML_FILE" PATT="$(2)" FAIL_UNDER="$(3)" python3 tests/coverage_report.py; \
-	fi
+else \
+	echo ""; \
+	echo "Error: No coverage report found for $(2) in $(1)"; \
+	exit 1; \
+fi
 endef
 
 .PHONY: test/cov
 test/cov:	##H Show coverage gaps
-	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt,35)
-	$(call CHECK_COVERAGE,$(COV_INSTALL),install.sh,80)
+	@err=0; \
+	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt,35) || err=1; \
+	$(call CHECK_COVERAGE,$(COV_INSTALL),install.sh,80) || err=1; \
+	exit $$err
 
 
 
