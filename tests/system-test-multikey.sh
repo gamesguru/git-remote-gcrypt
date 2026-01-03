@@ -301,4 +301,4 @@ print_info "Step 7: Reproduction Step - Push with buried key..."
 if [ -n "${COV_DIR:-}" ]; then
     print_success "OK. Report: file://${COV_DIR}/index.html"
 fi
-exit 0
+

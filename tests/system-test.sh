@@ -237,4 +237,4 @@ print_info "Step 5: Cloning the second repository using gitception:"
 if [ -n "${COV_DIR:-}" ]; then
     print_success "OK. Report: file://${COV_DIR}/index.html"
 fi
-exit 0
+
