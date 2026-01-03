@@ -534,7 +534,7 @@ PRIVENCRYPT()
 PRIVDECRYPT()
 {
 	# shellcheck disable=SC3043
-	local status_=""
+	local status_="" signer_=""
 	exec 4>&1 &&
 	status_=$(rungpg --status-fd 3 -q -d 3>&1 1>&4 || {
 		rc=$?
@@ -552,6 +552,12 @@ PRIVDECRYPT()
 		echo_info "Only accepting signatories: ${2:-(none)}" &&
 		return 1
 	})
+
+	# Extract signer
+	signer_=$(xfeed "$status_" grep "^\[GNUPG:\] GOODSIG " | cut -d ' ' -f 3)
+	if isnonnull "$signer_"; then
+		echo_info "Decrypting manifest signed with $signer_"
+	fi
 }
 
 # Generate $1 random bytes

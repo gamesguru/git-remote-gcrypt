@@ -72,7 +72,12 @@ trap "rm -Rf -- '${tempdir}'" EXIT
 
 # Set up the PATH to favor the version of git-remote-gcrypt from the repository
 # rather than a version that might already be installed on the user's system.
-PATH=$(git rev-parse --show-toplevel):${PATH}
+# We also copy it to tempdir to inject a version number for testing.
+repo_root=$(git rev-parse --show-toplevel)
+cp "$repo_root/git-remote-gcrypt" "$tempdir/git-remote-gcrypt"
+sed -i "s/@@DEV_VERSION@@/0.0.1-test/" "$tempdir/git-remote-gcrypt"
+chmod +x "$tempdir/git-remote-gcrypt"
+PATH=$tempdir:${PATH}
 readonly PATH
 export PATH
 
