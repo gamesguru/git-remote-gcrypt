@@ -100,13 +100,17 @@ test/system: check/deps	##H Test system functionality
 	 [ -n "$(DEBUG)$(V)" ] && export GCRYPT_DEBUG=1 && print_warn "Debug mode enabled"; \
 	 export GIT_CONFIG_PARAMETERS="'gcrypt.gpg-args=--pinentry-mode loopback --no-tty'"; \
 	 export COV_DIR=$(COV_SYSTEM); \
+	 sed -i 's|^#!/bin/sh|#!/bin/bash|' git-remote-gcrypt; \
+	 trap "sed -i 's|^#!/bin/bash|#!/bin/sh|' git-remote-gcrypt" EXIT; \
 	 for test_script in tests/system-test*.sh; do \
 	     kcov --include-path=$(PWD) \
 	          --include-pattern=git-remote-gcrypt \
 	          --exclude-path=$(PWD)/.git,$(PWD)/tests \
 	          $(COV_SYSTEM) \
 	          ./$$test_script || true; \
-	 done
+	 done; \
+	 sed -i 's|^#!/bin/bash|#!/bin/sh|' git-remote-gcrypt; \
+	 trap - EXIT
 
 
 define CHECK_COVERAGE
