@@ -982,9 +982,8 @@ EOF
 		then
 			echo_die "Implicit force push disallowed by gcrypt configuration."
 		else
-			echo_info "Due to a longstanding bug, this push implicitly has --force."
-			echo_info "Consider explicitly passing --force, and setting"
-			echo_info "gcrypt's require-explicit-force-push git config key."
+		echo_info "Note: gcrypt overwrites the remote manifest on each push."
+			echo_info "In multi-user setups, coordinate pushes to avoid conflicts."
 		fi
 	fi
 

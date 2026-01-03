@@ -255,10 +255,10 @@ print_info "Step 6: Force Push Warning Test (implicit force):"
     ) | tee "${output_file}"
 
     # Verify warning message appears
-    if grep -q "Due to a longstanding bug, this push implicitly has --force" "${output_file}"; then
-        print_success "Force push warning message displayed correctly."
+    if grep -q "gcrypt overwrites the remote manifest" "${output_file}"; then
+        print_success "Manifest overwrite note displayed correctly."
     else
-        print_err "Force push warning message NOT found!"
+        print_err "Manifest overwrite note NOT found!"
         exit 1
     fi
 } | indent
