@@ -766,10 +766,13 @@ ensure_connected()
 	# Check gcrypt version from manifest
 	filter_to @Manifest_version "extn gcrypt-version *" "$manifest_"
 	Manifest_version=${Manifest_version#extn gcrypt-version }
-	if isnonnull "$Manifest_version" && isnoteq "$Manifest_version" "$VERSION"
+	if isnonnull "$Manifest_version"
 	then
-		# Compare versions (simple string compare for now)
-		echo_info "Note: Remote was created with gcrypt $Manifest_version (you have $VERSION)"
+		echo_info "Manifest encrypted with gcrypt $Manifest_version"
+		if isnoteq "$Manifest_version" "$VERSION"
+		then
+			echo_info "WARNING: You are running gcrypt $VERSION"
+		fi
 	fi
 
 	r_repoid=${r_repoid#repo }
@@ -1034,6 +1037,10 @@ EOF
 	fi
 
 	# Generate manifest
+	# Update the gcrypt version in extensions (remove old, add current)
+	filter_to ! @Extnlist "extn gcrypt-version *" "$Extnlist"
+	append_to @Extnlist "extn gcrypt-version $VERSION"
+
 	echo_info "Encrypting to: $Recipients"
 	echo_info "Requesting manifest signature"
 
