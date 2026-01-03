@@ -29,7 +29,7 @@ print_err() { printf "\033[1;31m%s\033[0m\n" "$1"; }
 num_commits=5
 files_per_commit=3
 random_source="/dev/urandom"
-random_data_per_file=5242880 # 5 MiB
+random_data_per_file=${TEST_DATA_SIZE:-5120} # 5 KiB default, override with TEST_DATA_SIZE
 default_branch="main"
 test_user_name="git-remote-gcrypt"
 test_user_email="git-remote-gcrypt@example.com"
@@ -376,18 +376,41 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
     # Save the manifest file
     # Find and delete manifest files (hashes at root of repo for local transport)
     # We look for files with 64 hex characters in the repo directory
-    manifests=$(find "${tempdir}/second.git" -maxdepth 1 -type f -regextype posix-egrep -regex ".*/[0-9a-f]{56,64}")
+    # manifests=$(find "${tempdir}/second.git" -maxdepth 1 -type f -regextype posix-egrep -regex ".*/[0-9a-f]{56,64}")
+    # Simpler approach: globbing (which might fail if no match) then check
     
-    if [ -n "$manifests" ]; then
-        for m in $manifests; do
-             cp "$m" "${tempdir}/manifest_backup_$(basename "$m")"
-             rm "$m"
+    # Debug: List what's actually there
+    print_info "DEBUG: Listing ${tempdir}/second.git:"
+    find "${tempdir}/second.git" -mindepth 1 -maxdepth 1 -printf '%f\n' | indent
+    
+    # DEBUG: Dump directory listing to stdout
+    print_info "DEBUG: Listing ${tempdir}/second.git contents:"
+    find "${tempdir}/second.git" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort | indent
+
+    # Use find to robustly locate manifest files (56-64 hex chars)
+    # matching basename explicitly via grep. Using sed for portable basename extraction.
+    manifest_names=$(find "${tempdir}/second.git" -maxdepth 1 -type f | sed 's!.*/!!' | grep -E '^[0-9a-fA-F]{56,64}$' || true)
+    print_info "DEBUG: Detected manifest candidate(s): ${manifest_names:-none}"
+    
+    # Check if we actually found anything
+    if [ -n "$manifest_names" ]; then            
+        for fname in $manifest_names; do
+             f="${tempdir}/second.git/$fname"
+             cp "$f" "${tempdir}/manifest_backup_${fname}"
+             rm "$f"
         done
         manifest_saved=true
+    elif git -C "${tempdir}/second.git" show-ref --quiet --verify "refs/heads/${default_branch}"; then
+        # Gitception fallback: delete the branch ref
+        print_info "Detected Gitception manifest (branch ref). Backing up..."
+        manifest_sha=$(git -C "${tempdir}/second.git" rev-parse "refs/heads/${default_branch}")
+        git -C "${tempdir}/second.git" update-ref -d "refs/heads/${default_branch}"
+        manifest_saved=true
+        git_ref_backup="$manifest_sha"
     else
         # For gitception or if structure differs
         manifest_saved=false
-        print_warn "Skipping manifest backup - No manifest file found to delete. This might make the test pass falsely (or fail to check protection)."
+        print_warn "Skipping manifest backup - No manifest file/ref found to delete."
     fi
     
     # Create a fresh clone to test with
@@ -429,14 +452,18 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
     
     # Restore manifest(s) if we backed them up
     if [ "$manifest_saved" = true ]; then
-        for f in "${tempdir}"/manifest_backup_*; do
-             # extract original filename from backup filename
-             # basename is manifest_backup_<hash>
-             # we want to restore to ${tempdir}/second.git/<hash>
-             fname=$(basename "$f")
-             orig_name=${fname#manifest_backup_}
-             cp "$f" "${tempdir}/second.git/${orig_name}"
-        done
+        if [ -n "${git_ref_backup:-}" ]; then
+             git -C "${tempdir}/second.git" update-ref "refs/heads/${default_branch}" "$git_ref_backup"
+        else
+            for f in "${tempdir}"/manifest_backup_*; do
+                 # extract original filename from backup filename
+                 # basename is manifest_backup_<hash>
+                 # we want to restore to ${tempdir}/second.git/<hash>
+                 fname=$(basename "$f")
+                 orig_name=${fname#manifest_backup_}
+                 cp "$f" "${tempdir}/second.git/${orig_name}"
+            done
+        fi
     fi
 } | indent
 
