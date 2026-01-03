@@ -145,6 +145,8 @@ test/cov:	##H Show coverage gaps
 	exit $$err
 
 
+# Version from git describe (or fallback)
+__VERSION__ := $(shell git describe --tags --always --dirty 2>/dev/null || echo "@@DEV_VERSION@@")
 
 .PHONY: install/, install
 install/: install

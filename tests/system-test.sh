@@ -74,8 +74,9 @@ trap "rm -Rf -- '${tempdir}'" EXIT
 # rather than a version that might already be installed on the user's system.
 # We also copy it to tempdir to inject a version number for testing.
 repo_root=$(git rev-parse --show-toplevel)
+test_version=$(git describe --tags --always --dirty 2>/dev/null || echo "test")
 cp "$repo_root/git-remote-gcrypt" "$tempdir/git-remote-gcrypt"
-sed -i "s/@@DEV_VERSION@@/0.0.1-test/" "$tempdir/git-remote-gcrypt"
+sed -i "s/@@DEV_VERSION@@/$test_version/" "$tempdir/git-remote-gcrypt"
 chmod +x "$tempdir/git-remote-gcrypt"
 PATH=$tempdir:${PATH}
 readonly PATH
