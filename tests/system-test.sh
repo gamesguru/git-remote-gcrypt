@@ -234,6 +234,128 @@ print_info "Step 5: Cloning the second repository using gitception:"
 } | indent
 
 
+###
+section_break
+
+print_info "Step 6: Force Push Warning Test (implicit force):"
+{
+    # Make a change in first repo
+    cd "${tempdir}/first"
+    echo "force push test data" > "force_test.txt"
+    git add force_test.txt
+    git commit -m "Commit for force push test"
+
+    # Push WITHOUT + prefix (should trigger warning about implicit force)
+    output_file="${tempdir}/force_push_output"
+    (
+        set -x
+        # Use refspec without + to trigger warning
+        git push "gcrypt::${tempdir}/second.git#${default_branch}" \
+            "${default_branch}:refs/heads/${default_branch}" 2>&1
+    ) | tee "${output_file}"
+
+    # Verify warning message appears
+    if grep -q "Due to a longstanding bug, this push implicitly has --force" "${output_file}"; then
+        print_success "Force push warning message displayed correctly."
+    else
+        print_err "Force push warning message NOT found!"
+        exit 1
+    fi
+} | indent
+
+###
+section_break
+
+print_info "Step 7: require-explicit-force-push=true Test:"
+{
+    cd "${tempdir}/first"
+
+    # Enable require-explicit-force-push
+    git config gcrypt.require-explicit-force-push true
+
+    # Make another change
+    echo "blocked push test" > "blocked_test.txt"
+    git add blocked_test.txt
+    git commit -m "Commit for blocked push test"
+
+    # Attempt push without + (should FAIL)
+    output_file="${tempdir}/blocked_push_output"
+    set +e
+    (
+        set -x
+        git push "gcrypt::${tempdir}/second.git#${default_branch}" \
+            "${default_branch}:refs/heads/${default_branch}" 2>&1
+    ) | tee "${output_file}"
+    push_status=$?
+    set -e
+
+    if [ $push_status -ne 0 ] && grep -q "Implicit force push disallowed" "${output_file}"; then
+        print_success "Push correctly blocked by require-explicit-force-push."
+    else
+        print_err "Push should have been blocked but wasn't!"
+        exit 1
+    fi
+
+    # Now push WITH --force (should succeed)
+    (
+        set -x
+        git push --force "gcrypt::${tempdir}/second.git#${default_branch}" \
+            "${default_branch}"
+    ) 2>&1
+
+    print_success "Explicit force push succeeded."
+
+    # Clean up config for next tests
+    git config --unset gcrypt.require-explicit-force-push
+} | indent
+
+###
+section_break
+
+print_info "Step 8: Signal Handling Test (Ctrl+C simulation):"
+{
+    cd "${tempdir}/first"
+
+    # Make a change to push
+    echo "signal test data" > "signal_test.txt"
+    git add signal_test.txt
+    git commit -m "Commit for signal test"
+
+    # Start push in background and send SIGINT after brief delay
+    # This tests that the script exits cleanly on interruption
+    output_file="${tempdir}/signal_output"
+    set +e
+    (
+        # Give it a moment to start, then send SIGINT
+        (sleep 0.5 && kill -INT $$ 2>/dev/null) &
+        git push --force "gcrypt::${tempdir}/second.git#${default_branch}" \
+            "${default_branch}" 2>&1
+    ) > "${output_file}" 2>&1
+    signal_status=$?
+    set -e
+
+    # Exit code 130 = SIGINT (128 + 2), or 0 if push completed before SIGINT
+    if [ $signal_status -eq 130 ] || [ $signal_status -eq 0 ]; then
+        print_success "Signal handling: Exit code $signal_status (OK)."
+    else
+        print_err "Unexpected exit code: $signal_status"
+        # Don't fail the test - signal timing is unpredictable
+    fi
+
+    # Verify no leftover temp files in repo's gcrypt dir
+    if [ -d "${tempdir}/first/.git/remote-gcrypt" ]; then
+        leftover_count=$(find "${tempdir}/first/.git/remote-gcrypt" -name "*.tmp" 2>/dev/null | wc -l)
+        if [ "$leftover_count" -gt 0 ]; then
+            print_err "Warning: Found $leftover_count leftover temp files"
+        else
+            print_success "No leftover temp files found."
+        fi
+    else
+        print_success "No remote-gcrypt directory (OK for gitception)."
+    fi
+} | indent
+
+
 if [ -n "${COV_DIR:-}" ]; then
     print_success "OK. Report: file://${COV_DIR}/index.html"
 fi

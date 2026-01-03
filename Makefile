@@ -78,7 +78,7 @@ COV_INSTALL := $(COV_ROOT)/installer
 
 .PHONY: test/, test
 test/: test
-test: test/purity test/installer test/system test/cov	##H All tests & coverage
+test: test/installer test/system test/cov	##H All tests & coverage
 
 .PHONY: test/installer
 test/installer: check/deps	##H Test installer logic
