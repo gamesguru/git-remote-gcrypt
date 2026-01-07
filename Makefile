@@ -26,7 +26,7 @@ _all: lint test/installer test/system
 
 .PHONY: vars
 vars:	##H Display all Makefile variables (simple)
-	@echo "=== Makefile Variables (file/command/line origin) ==="
+	$(info === Makefile Variables (file/command/line origin) ===)
 	@$(foreach V,$(sort $(.VARIABLES)), \
 		$(if $(filter file command line,$(origin $(V))), \
 			$(info $(shell printf "%-30s" "$(V)") = $(value $(V))) \
@@ -124,22 +124,25 @@ test/system: check/deps	##H Run coverage tests (Dynamic Bash)
 	 trap - EXIT
 
 
-define CHECK_COVERAGE
-XML_FILE=$$(find $(1) -name "cobertura.xml" 2>/dev/null | grep "merged" | head -n 1); \
-[ -z "$$XML_FILE" ] && XML_FILE=$$(find $(1) -name "cobertura.xml" 2>/dev/null | head -n 1); \
-if [ -f "$$XML_FILE" ]; then \
-	echo ""; \
-	echo "Report for: file://$$(dirname "$$XML_FILE")/index.html"; \
-	XML_FILE="$$XML_FILE" PATT="$(2)" FAIL_UNDER="$(3)" python3 tests/coverage_report.py; \
-else \
-	echo ""; \
-	echo "Error: No coverage report found for $(2) in $(1)"; \
-	exit 1; \
-fi
-endef
+# Find coverage XML: preference for "merged" > any other (search depth: 2 subdirs)
+find_coverage_xml = $(or \
+	$(filter %/merged/cobertura.xml, $(wildcard $(1)/cobertura.xml $(1)/*/cobertura.xml $(1)/*/*/cobertura.xml)), \
+	$(firstword $(wildcard $(1)/cobertura.xml $(1)/*/cobertura.xml $(1)/*/*/cobertura.xml)) \
+)
 
-.PHONY: test/cov
+CHECK_COVERAGE = $(if $(call find_coverage_xml,$(1)), \
+	echo "" ; \
+	echo "Report for: file://$(abspath $(dir $(call find_coverage_xml,$(1))))/index.html" ; \
+	XML_FILE="$(call find_coverage_xml,$(1))" PATT="$(2)" FAIL_UNDER="$(3)" python3 tests/coverage_report.py, \
+	echo "" ; \
+	echo "Error: No coverage report found for $(2) in $(1)" ; \
+	exit 1)
+
+.PHONY: test/cov _test_cov_internal
 test/cov:	##H Show coverage gaps
+	$(MAKE) _test_cov_internal
+
+_test_cov_internal:
 	@err=0; \
 	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt,60) || err=1; \
 	$(call CHECK_COVERAGE,$(COV_INSTALL),install.sh,80) || err=1; \
