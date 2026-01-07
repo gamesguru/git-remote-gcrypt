@@ -399,6 +399,13 @@ gitception_new_repo()
 GET()
 {
 	print_debug "GET $1 $2 $3"
+	# Check for pre-fetched batch file
+	if [ -f "$Tempdir/batch/$2" ]; then
+		print_debug "Using pre-fetched file $2"
+		cat "$Tempdir/batch/$2" > "$3"
+		return 0
+	fi
+
 	if isurl sftp "$1"
 	then
 		(exec 0</dev/null; curl -s -S -k "$1/$2") > "$3"
@@ -884,8 +891,48 @@ get_verify_decrypt_pack()
 get_pack_files()
 {
 	# shellcheck disable=SC3043
-	local pack_id="" r_pack_key_line="" htype_="" pack_="" key_=""
-	while IFS=': ' read -r _ htype_ pack_ # <<here-document
+	local pack_id="" r_pack_key_line="" htype_="" pack_="" key_="" input_data=""
+
+	# Capture input data first (to allow multiple passes)
+	input_data=$(cat)
+
+	# Batch Fetch Optimization for rsync
+	if isurl rsync "$URL" && isnonnull "$input_data"; then
+		mkdir -p "$Tempdir/batch"
+		# Extract pack filenames (field 3) from input lines.
+		# Format: "pack :SHA256:HASH ..." -> we need HASH (which is $pack_)
+		# Input data comes from $pneed_ which was filtered from $Packlist.
+		# Format matches Packlist: "pack :HTYPE:HASH KEY"
+		# xecho "$input_data"
+
+		# We construct a list of files to fetch.
+		# Iterate over input_data to extract pack names
+		(
+			IFS=$Newline
+			for line in $input_data; do
+				# parse "pack :HTYPE:HASH KEY"
+				# shellcheck disable=SC2086
+				set -- $line
+				# $1=pack, $2=:HTYPE:HASH, $3=KEY
+				# extract HASH from $2
+				p_hash=${2##*:}
+				echo "$p_hash"
+			done
+		) > "$Tempdir/batch_list"
+
+		if [ -s "$Tempdir/batch_list" ]; then
+			print_debug "Batch fetching $(line_count "$(cat "$Tempdir/batch_list")") packs..."
+			(
+				if [ -n "${GCRYPT_TRACE:-}" ]; then set -x; fi
+				exec 0</dev/null
+				# Use --files-from=- to download all packs in one go
+				rsync -I -W --files-from="$Tempdir/batch_list" "$(rsynclocation "$URL")/" "$Tempdir/batch/" >&2
+			)
+		fi
+	fi
+
+	# Process packs (sequentially, using cache if available)
+	xecho "$input_data" | while IFS=': ' read -r _ htype_ pack_ # <<here-document
 	do
 		isnonnull "$pack_" || continue
 
