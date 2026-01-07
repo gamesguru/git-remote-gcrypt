@@ -59,6 +59,19 @@ check/deps:	##H Verify kcov & shellcheck
 	@$(call print_success,Dependencies OK.)
 
 
+
+LINT_LOCS_PY ?= $(shell git ls-files '*.py')
+LINT_LOCS_SH ?=
+
+.PHONY: format
+format:	##H Format scripts
+	@$(call print_target,format)
+	@$(call print_info,Formatting Python scripts...)
+	shfmt -i 4 -ci -bn -s -w $(LINT_LOCS_SH)
+	-black $(LINT_LOCS_PY)
+	-isort $(LINT_LOCS_PY)
+	@$(call print_success,OK.)
+
 .PHONY: lint
 lint:	##H Run shellcheck
 	# lint install script
