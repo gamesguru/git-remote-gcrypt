@@ -64,32 +64,30 @@ EOF
 
 # Handle subcommands early
 case "$1" in
-	check|--check)
-		NAME=gcrypt-check
-		URL=$2
-		# Will be handled at the end of the script
-		;;
-	clean)
-		NAME=gcrypt-clean
+	check|--check|clean)
+		cmd="${1#--}"
+		NAME="gcrypt-$cmd"
 		shift
 		FORCE_CLEAN=
 		URL=
 		while [ $# -gt 0 ]; do
 			case "$1" in
-				--force|-f) FORCE_CLEAN=yes ;;
-				-*) echo "Unknown option: $1" >&2; exit 1 ;;
+				--force|-f) 
+					[ "$cmd" = "clean" ] || { echo "Unknown option for check: $1" >&2; exit 1; }
+					FORCE_CLEAN=yes
+					;;
+				-*) echo "Unknown option for $cmd: $1" >&2; exit 1 ;;
 				*)
 					if [ -z "$URL" ]; then
 						URL="$1"
 					else
-						echo "Error: Multiple URLs/remotes provided to clean" >&2
+						echo "Error: Multiple URLs/remotes provided to $cmd" >&2
 						exit 1
 					fi
 					;;
 			esac
 			shift
 		done
-		# Will be handled at the end of the script
 		;;
 	help|--help|-h)
 		show_help
@@ -247,6 +245,30 @@ isurl() { isnull "${2%%"$1"://*}"; }
 islocalrepo() { isnull "${1##/*}" && [ ! -e "$1/HEAD" ]; }
 
 xgrep() { command grep "$@" || : ; }
+
+# Resolve URL or remote name, or list remotes if empty
+resolve_url() {
+	local cmd="$1"
+	if [ -z "$URL" ]; then
+		local remotes
+		remotes=$(git remote -v | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
+		echo "Usage: git-remote-gcrypt $cmd [URL|REMOTE]" >&2
+		if [ -n "$remotes" ]; then
+			echo "Error: No URL or remote specified. Available gcrypt remotes:" >&2
+			echo "$remotes" | sed 's/^/  /' >&2
+		else
+			echo "Error: No gcrypt remotes found and no URL/remote specified." >&2
+		fi
+		exit 1
+	fi
+	if ! echo "$URL" | grep -q -E '://|::'; then
+		local potential_url
+		potential_url=$(git config --get "remote.$URL.url" || :)
+		if [ -n "$potential_url" ]; then
+			URL="$potential_url"
+		fi
+	fi
+}
 
 # setvar is used for named return variables
 # $1 *must* be a valid variable name, $2 is any value
@@ -1362,25 +1384,7 @@ gcrypt_main_loop()
 }
 
 if [ "$NAME" = "gcrypt-check" ]; then
-	# URL resolution logic
-	if [ -z "$URL" ]; then
-		remotes=$(git remote -v | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
-		echo "Usage: git-remote-gcrypt check [URL|REMOTE]" >&2
-		if [ -n "$remotes" ]; then
-			echo "Error: No URL or remote specified. Available gcrypt remotes:" >&2
-			echo "$remotes" | sed 's/^/  /' >&2
-		else
-			echo "Error: No gcrypt remotes found and no URL/remote specified." >&2
-		fi
-		exit 1
-	elif ! echo "$URL" | grep -q -E '://|::'; then
-		potential_url=$(git config --get "remote.$URL.url" || :)
-		if [ -n "$potential_url" ]; then
-			URL="$potential_url"
-		fi
-	fi
-
-	# Check command: NAME and URL were set at the top
+	resolve_url check
 	echo_info "Checking remote: $URL"
 	setup
 	ensure_connected
@@ -1391,27 +1395,8 @@ if [ "$NAME" = "gcrypt-check" ]; then
 		exit 100
 	fi
 elif [ "$NAME" = "gcrypt-clean" ]; then
-	# URL resolution logic
-	if [ -z "$URL" ]; then
-		remotes=$(git remote -v | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
-		echo "Usage: git-remote-gcrypt clean [URL|REMOTE] [-f]" >&2
-		if [ -n "$remotes" ]; then
-			echo "Error: No URL or remote specified. Available gcrypt remotes:" >&2
-			echo "$remotes" | sed 's/^/  /' >&2
-		else
-			echo "Error: No gcrypt remotes found and no URL/remote specified." >&2
-		fi
-		exit 1
-	elif ! echo "$URL" | grep -q -E '://|::'; then
-		potential_url=$(git config --get "remote.$URL.url" || :)
-		if [ -n "$potential_url" ]; then
-			URL="$potential_url"
-		fi
-	fi
-
-	# Cleanup command: NAME, URL, FORCE_CLEAN were set at the top
+	resolve_url clean
 	echo_info "Checking remote: $URL"
-
 	setup
 	if ! ensure_connected; then
 		echo_die "Could not connect to $URL."
