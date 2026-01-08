@@ -1358,9 +1358,12 @@ elif [ "$NAME" = "gcrypt-clean" ]; then
 
 	# Get all files in the remote
 	# For rsync backends, list files directly via rsync --list-only (awk extracts filename).
+	# For rclone backends, list files via rclone lsf.
 	# For git backends, list files from the gcrypt branch tree.
 	if isurl rsync "$URL"; then
 		remote_files=$(rsync --no-motd --list-only "$(rsynclocation "$URL")/" | awk '{print $NF}' | grep -vE '^\.$|^\.\.$' || :)
+	elif isurl rclone "$URL"; then
+		remote_files=$(rclone lsf "$(rclonelocation "$URL")" 2>/dev/null || :)
 	else
 		remote_files=$(git ls-tree --name-only "$Gref" 2>/dev/null || :)
 	fi
