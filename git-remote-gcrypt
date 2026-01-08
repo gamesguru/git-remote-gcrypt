@@ -227,7 +227,7 @@ resolve_url() {
 	local cmd="$1"
 	if [ -z "$URL" ]; then
 		local remotes
-		remotes=$(git remote -v || :)
+		remotes=$(git remote -v | awk '{print $1 "  " $2}' | sort -u || :)
 		echo "Usage: git-remote-gcrypt $cmd [URL|REMOTE]" >&2
 		if [ -n "$remotes" ]; then
 			echo "No URL or remote specified. Available remotes:" >&2
@@ -248,6 +248,7 @@ resolve_url() {
 			URL="$potential_url"
 		fi
 	fi
+	URL="${URL#gcrypt::}"
 }
 
 # setvar is used for named return variables
