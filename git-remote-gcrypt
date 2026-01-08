@@ -227,17 +227,18 @@ resolve_url() {
 	local cmd="$1"
 	if [ -z "$URL" ]; then
 		local remotes
-		remotes=$(git remote -v | grep 'gcrypt::' || :)
+		remotes=$(git remote -v || :)
 		echo "Usage: git-remote-gcrypt $cmd [URL|REMOTE]" >&2
 		if [ -n "$remotes" ]; then
-			echo "Error: No URL or remote specified. Available gcrypt remotes:" >&2
+			echo "No URL or remote specified. Available remotes:" >&2
 			echo "$remotes" | sed 's/^/  /' >&2
+			exit 0
 		else
-			echo "Error: No gcrypt remotes found and no URL/remote specified." >&2
+			echo "Error: No remotes found and no URL/remote specified." >&2
+			exit 1
 		fi
-		exit 1
 	fi
-	
+
 	# If it's not a URL, try to resolve as a remote name
 	if ! echo "$URL" | grep -q -E '://|::' || [ -n "${URL##*/*}" ]; then
 		local potential_url

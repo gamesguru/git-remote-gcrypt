@@ -276,6 +276,9 @@ To scan for unencrypted files in a remote gcrypt repo, use::
 
     git-remote-gcrypt clean [url|remote]
 
+.. warning::
+   The clean command is unstable and subject to deprecation or renaming and should not be used in scripts.
+
 If no URL or remote is specified, ``git-remote-gcrypt`` will list all
 available ``gcrypt::`` remotes.
 
