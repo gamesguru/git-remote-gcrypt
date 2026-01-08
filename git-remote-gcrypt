@@ -86,6 +86,7 @@ while [ $# -gt 0 ]; do
 			while [ $# -gt 0 ]; do
 				case "$1" in
 					--force|-f) FORCE_CLEAN=yes ;;
+					help|--help|-h) show_help; exit 0 ;;
 					-*) echo "Unknown option: $1" >&2; exit 1 ;;
 					*)
 						if [ -z "$URL" ]; then
@@ -227,7 +228,7 @@ resolve_url() {
 	local cmd="$1"
 	if [ -z "$URL" ]; then
 		local remotes
-		remotes=$(git remote -v | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
+		remotes=$(git remote -v | grep 'gcrypt::' || :)
 		echo "Usage: git-remote-gcrypt $cmd [URL|REMOTE]" >&2
 		if [ -n "$remotes" ]; then
 			echo "Error: No URL or remote specified. Available gcrypt remotes:" >&2
