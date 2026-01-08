@@ -3,7 +3,6 @@
 
 complete -c git-remote-gcrypt -s h -l help -d 'Show help message'
 complete -c git-remote-gcrypt -s v -l version -d 'Show version information'
-complete -c git-remote-gcrypt -l check -d '(Legacy) Check if URL is a gcrypt repository' -r -F
 
 # Subcommands
 complete -c git-remote-gcrypt -f -n "not __fish_seen_subcommand_from {not_sc_list}" -a 'check' -d 'Check if URL is a gcrypt repository'

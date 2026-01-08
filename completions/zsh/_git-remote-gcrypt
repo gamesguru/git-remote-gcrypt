@@ -7,7 +7,6 @@ _git_remote_gcrypt() {
 	args=(
 		'(- *)'{-h,--help}'[show help message]'
 		'(- *)'{-v,--version}'[show version information]'
-		'--check[check if URL is a gcrypt repository]:URL:_files'
 		'1:command:(check clean)'
 		'*::subcommand arguments:->args'
 	)

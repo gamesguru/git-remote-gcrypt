@@ -6,7 +6,7 @@ _git_remote_gcrypt() {
 	COMPREPLY=()
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD - 1]}"
-	opts="-h --help -v --version --check"
+	opts="-h --help -v --version"
 	commands="{commands}"
 
 	# 1. First argument: complete commands and global options
