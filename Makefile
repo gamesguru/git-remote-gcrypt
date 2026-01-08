@@ -61,27 +61,29 @@ check/deps:	##H Verify kcov & shellcheck
 
 
 LINT_LOCS_PY ?= $(shell git ls-files '*.py')
-LINT_LOCS_SH ?=
+LINT_LOCS_SH ?= $(shell git ls-files '*.sh' ':!tests/system-test.sh')
 
 .PHONY: format
 format:	##H Format scripts
 	@$(call print_target,format)
+	@$(call print_info,Formatting shell scripts...)
+	shfmt -ci -bn -s -w $(LINT_LOCS_SH)
+	@$(call print_success,OK.)
 	@$(call print_info,Formatting Python scripts...)
-	$(if $(LINT_LOCS_SH),shfmt -i 4 -ci -bn -s -w $(LINT_LOCS_SH))
 	-black $(LINT_LOCS_PY)
 	-isort $(LINT_LOCS_PY)
 	@$(call print_success,OK.)
 
 .PHONY: lint
 lint:	##H Run shellcheck
-	# lint install script
+	@$(call print_target,lint)
+	@$(call print_info,Running shellcheck...)
 	shellcheck install.sh
-	@$(call print_success,OK.)
-	# lint system/binary script
 	shellcheck -e SC3043,SC2001 git-remote-gcrypt
-	@$(call print_success,OK.)
-	# lint test scripts
 	shellcheck tests/*.sh
+	@$(call print_success,OK.)
+	@$(call print_info,Linting Python scripts...)
+	-ruff check $(LINT_LOCS_PY)
 	@$(call print_success,OK.)
 
 # --- Test Config ---
@@ -202,8 +204,5 @@ clean:	##H Clean up
 .PHONY: generate
 generate:	##H Autogenerate README usage & completions
 	@$(call print_info,Generating documentation and completions...)
-	python3 tests/sync_docs.py
-	@# Update README.rst Usage section (simple version for now)
-	@sed -i '/Detecting gcrypt repos/,/Exit status is 0/c\Detecting gcrypt repos\n======================\n\nTo detect if a git url is a gcrypt repo, use::\n\n    git-remote-gcrypt check url\n\n(Legacy syntax ``--check`` is also supported).\n\nExit status is 0' README.rst
-	@sed -i '/Cleaning gcrypt repos/,/Known issues/c\Cleaning gcrypt repos\n=====================\n\nTo scan for unencrypted files in a remote gcrypt repo, use::\n\n    git-remote-gcrypt clean [url|remote]\n\nIf no URL or remote is specified, ``git-remote-gcrypt`` will list all\navailable ``gcrypt::`` remotes.\n\nBy default, this command only performs a scan. To actually remove the\nunencrypted files, you must use the ``--force`` (or ``-f``) flag::\n\n    git-remote-gcrypt clean url --force\n\nKnown issues' README.rst
+	python3 completions/gen_docs.py
 	@$(call print_success,Generated.)

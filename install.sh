@@ -8,8 +8,8 @@ verbose() { echo "$@" >&2 && "$@"; }
 
 install_v() {
 	# Install $1 into $2/ with mode $3
-	verbose install -d "$2" &&
-		verbose install -m "$3" "$1" "$2"
+	verbose install -d "$2" \
+		&& verbose install -m "$3" "$1" "$2"
 }
 
 # --- VERSION DETECTION ---

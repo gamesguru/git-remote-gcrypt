@@ -24,7 +24,7 @@ if [ $EXIT_CODE -ne 0 ]; then
 fi
 
 # 3. Verify the placeholder was replaced
-if [[ "$OUTPUT" == *"@@DEV_VERSION@@"* ]]; then
+if [[ $OUTPUT == *"@@DEV_VERSION@@"* ]]; then
 	print_err "ERROR: Version placeholder @@DEV_VERSION@@ was not replaced!"
 	exit 1
 fi
@@ -40,7 +40,7 @@ else
 	EXPECTED_ID="unknown_OS"
 fi
 
-if [[ "$OUTPUT" != *"(deb running on $EXPECTED_ID)"* ]]; then
+if [[ $OUTPUT != *"(deb running on $EXPECTED_ID)"* ]]; then
 	print_err "ERROR: Distro ID '$EXPECTED_ID' missing from version string! (Got: $OUTPUT)"
 	exit 1
 fi

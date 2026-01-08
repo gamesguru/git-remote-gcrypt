@@ -45,7 +45,7 @@ assert_version() {
 	OUTPUT=$("$INSTALLED_BIN" --version 2>&1 </dev/null)
 
 	# CRITICAL: Use quotes around the variable to handle parentheses correctly
-	if [[ "$OUTPUT" != *"$EXPECTED_SUBSTRING"* ]]; then
+	if [[ $OUTPUT != *"$EXPECTED_SUBSTRING"* ]]; then
 		print_err "FAILED: Expected '$EXPECTED_SUBSTRING' in output."
 		print_err "        Got: '$OUTPUT'"
 		exit 1
