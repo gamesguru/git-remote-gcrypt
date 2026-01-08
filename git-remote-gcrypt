@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #  git-remote-gcrypt
 #
@@ -105,21 +105,16 @@ while [ $# -gt 0 ]; do
 			exit 1
 			;;
 		*)
-			# Assume it's the remote name if not already set
-			if [ -z "$NAME" ]; then
-				NAME="$1"
-			elif [ -z "$URL" ]; then
-				URL="$1"
-			fi
+			break
 			;;
 	esac
-	shift || :
 done
 
 # If NAME is not set, we might be invoked as a remote helper
 if [ -z "$NAME" ]; then
-	show_help
-	exit 1
+	# We are likely running as "git-remote-gcrypt <remote> <url>"
+	# This case is handled by gcrypt_main_loop "$@" at the bottom if flags/commands were not matched
+	:
 fi
 case "${1:-}" in
 	capabilities)
@@ -230,10 +225,7 @@ xgrep() { command grep "$@" || : ; }
 # Resolve URL or remote name, or list remotes if empty
 resolve_url() {
 	local cmd="$1"
-	if [ -z "$URL" ] || [ "$URL" = "$cmd" ]; then
-		# Handle cases where shift might have messed up or URL was empty
-		if [ "$URL" = "$cmd" ]; then URL=""; fi
-		
+	if [ -z "$URL" ]; then
 		local remotes
 		remotes=$(git remote -v | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
 		echo "Usage: git-remote-gcrypt $cmd [URL|REMOTE]" >&2
@@ -1417,5 +1409,6 @@ elif [ "$1" = --version ] || [ "$1" = -v ]; then
 	echo "git-remote-gcrypt version $VERSION"
 	exit 0
 else
-	gcrypt_main_loop "$NAME" "$URL"
+	gcrypt_main_loop "$@"
+	# gcrypt_main_loop "$NAME" "$URL"
 fi
