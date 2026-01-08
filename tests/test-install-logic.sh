@@ -15,6 +15,8 @@ print_info "Running install logic tests in $SANDBOX..."
 # 2. Copy artifacts
 cp git-remote-gcrypt "$SANDBOX"
 cp README.rst "$SANDBOX" 2>/dev/null || touch "$SANDBOX/README.rst"
+cp README.rst.in "$SANDBOX"
+cp -r completions/ "$SANDBOX"
 cp install.sh "$SANDBOX"
 cd "$SANDBOX" || exit 2
 
