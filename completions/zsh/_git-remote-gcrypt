@@ -17,7 +17,7 @@ _git_remote_gcrypt() {
 	clean)
 		_arguments \
 			'(-f --force)'{-f,--force}'[actually delete files]' \
-			'*:gcrypt URL:'
+			'*:gcrypt URL: _alternative "remotes:gcrypt remote:($(git remote -v 2>/dev/null | grep "gcrypt::" | awk "{print \$1}" | sort -u))" "files:file:_files"'
 		;;
 	check)
 		_arguments \

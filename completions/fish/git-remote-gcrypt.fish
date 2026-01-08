@@ -8,6 +8,7 @@ complete -c git-remote-gcrypt -l check -d '(Legacy) Check if URL is a gcrypt rep
 # Subcommands
 complete -c git-remote-gcrypt -f -n "not __fish_seen_subcommand_from capabilities check clean fetch list push" -a 'check' -d 'Check if URL is a gcrypt repository'
 complete -c git-remote-gcrypt -f -n "not __fish_seen_subcommand_from capabilities check clean fetch list push" -a 'clean' -d 'Scan/Clean unencrypted files from remote'
+complete -c git-remote-gcrypt -n "__fish_seen_subcommand_from clean check" -a "(git remote -v 2>/dev/null | grep 'gcrypt::' | awk '{print \$1}' | sort -u)" -d 'Gcrypt Remote'
 
 # Clean flags
 complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from capabilities check clean fetch list push" -s f -l force -d 'Actually delete files during clean'

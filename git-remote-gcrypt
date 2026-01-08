@@ -1390,10 +1390,9 @@ elif [ "$NAME" = "gcrypt-clean" ]; then
 	xecho "$bad_files" | sed 's/^/  /' >&2
 
 	if isnull "$FORCE_CLEAN"; then
-		echo_info ""
 		echo_info "NOTE: This is a scan of unencrypted files on the remote."
-		echo_info "To actually delete these files, use: git-remote-gcrypt clean $URL --force"
-		echo_info ""
+		echo_info "To actually delete these files, use:"
+		echo_info "   git-remote-gcrypt clean $URL --force"
 		CLEAN_FINAL "$URL"
 		git remote remove "$NAME" 2>/dev/null || true
 		exit 0

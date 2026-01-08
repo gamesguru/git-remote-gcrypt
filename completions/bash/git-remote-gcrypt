@@ -9,35 +9,36 @@ _git_remote_gcrypt() {
 	opts="-h --help -v --version --check"
 	commands="capabilities check clean fetch list push"
 
-	# If we're after a subcommand, only offer -h/--help
-	if [[ " $commands " =~ " ${COMP_WORDS[1]:-} " ]]; then
-		COMPREPLY=($(compgen -W "-h --help" -- "$cur"))
+	# 1. First argument: complete commands and global options
+	if [[ $COMP_CWORD -eq 1 ]]; then
+		COMPREPLY=($(compgen -W "$commands $opts" -- "$cur"))
+		if [[ "$cur" == gcrypt::* ]]; then
+			COMPREPLY+=("$cur")
+		fi
 		return 0
 	fi
 
-	case "$prev" in
-	clean)
-		COMPREPLY=($(compgen -W "-f --force" -- "$cur"))
-		return 0
-		;;
-	--check | check)
-		# Complete with gcrypt:: URLs or file paths
-		COMPREPLY=($(compgen -f -- "$cur"))
-		return 0
-		;;
+	# 2. Handle subcommands
+	case "${COMP_WORDS[1]}" in
+		clean)
+			local remotes=$(git remote -v 2>/dev/null | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
+			COMPREPLY=($(compgen -W "-f --force -h --help $remotes" -- "$cur"))
+			return 0
+			;;
+		check|--check)
+			COMPREPLY=($(compgen -f -- "$cur"))
+			return 0
+			;;
+		capabilities|fetch|list|push)
+			COMPREPLY=($(compgen -W "-h --help" -- "$cur"))
+			return 0
+			;;
 	esac
 
+	# 3. Fallback (global flags if not in a known subcommand?)
 	if [[ "$cur" == -* ]]; then
 		COMPREPLY=($(compgen -W "$opts" -- "$cur"))
 		return 0
-	fi
-
-	# Complete with both git protocol commands and flags on first argument
-	COMPREPLY=($(compgen -W "$commands $opts" -- "$cur"))
-
-	# Also complete with gcrypt:: URLs
-	if [[ "$cur" == gcrypt::* ]]; then
-		COMPREPLY+=("$cur")
 	fi
 }
 
