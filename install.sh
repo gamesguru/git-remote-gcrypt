@@ -46,6 +46,9 @@ trap 'rm -rf "$BUILD_DIR"' EXIT
 # Placeholder injection
 sed "s|@@DEV_VERSION@@|$VERSION|g" git-remote-gcrypt >"$BUILD_DIR/git-remote-gcrypt"
 
+# --- GENERATION ---
+verbose python3 completions/gen_docs.py
+
 # --- INSTALLATION ---
 # This is where the 'Permission denied' happens if not sudo
 install_v "$BUILD_DIR/git-remote-gcrypt" "$DESTDIR$prefix/bin" 755
@@ -65,15 +68,13 @@ else
 	echo "'rst2man' not found, man page not installed" >&2
 fi
 
-# Suggest installing shell completions
-cat >&2 <<EOF
+# Install shell completions
+# Bash
+install_v completions/bash/git-remote-gcrypt "$DESTDIR$prefix/share/bash-completion/completions" 644
+# Zsh
+install_v completions/zsh/_git-remote-gcrypt "$DESTDIR$prefix/share/zsh/site-functions" 644
+# Fish
+install_v completions/fish/git-remote-gcrypt.fish "$DESTDIR$prefix/share/fish/vendor_completions.d" 644
 
-Installation complete!
-
-Optional: Install shell completions for tab completion:
-  Bash:  completions/bash/git-remote-gcrypt
-  Zsh:   completions/zsh/_git-remote-gcrypt
-  Fish:  completions/fish/git-remote-gcrypt.fish
-
-See completions/README.rst for details.
-EOF
+echo "Installation complete!"
+echo "Completions installed to $DESTDIR$prefix/share/"
