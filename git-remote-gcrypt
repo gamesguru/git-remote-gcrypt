@@ -86,7 +86,6 @@ while [ $# -gt 0 ]; do
 			while [ $# -gt 0 ]; do
 				case "$1" in
 					--force|-f) FORCE_CLEAN=yes ;;
-					help|--help|-h) show_help; exit 0 ;;
 					-*) echo "Unknown option: $1" >&2; exit 1 ;;
 					*)
 						if [ -z "$URL" ]; then
