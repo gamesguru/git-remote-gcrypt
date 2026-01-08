@@ -7,7 +7,7 @@ _git_remote_gcrypt() {
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD - 1]}"
 	opts="-h --help -v --version --check"
-	commands="capabilities list push fetch"
+	commands="capabilities list push fetch check clean"
 
 	# If we're after a subcommand, only offer -h/--help
 	if [[ " $commands " =~ " ${COMP_WORDS[1]:-} " ]]; then
@@ -16,7 +16,11 @@ _git_remote_gcrypt() {
 	fi
 
 	case "$prev" in
-	--check)
+	clean)
+		COMPREPLY=($(compgen -W "-f --force" -- "$cur"))
+		return 0
+		;;
+	--check | check)
 		# Complete with gcrypt:: URLs or file paths
 		COMPREPLY=($(compgen -f -- "$cur"))
 		return 0

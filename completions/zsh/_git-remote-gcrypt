@@ -8,10 +8,26 @@ _git_remote_gcrypt() {
 		'(- *)'{-h,--help}'[show help message]'
 		'(- *)'{-v,--version}'[show version information]'
 		'--check[check if URL is a gcrypt repository]:URL:_files'
-		'1:command:(capabilities list push fetch)'
-		'*:gcrypt URL:'
+		'1:command:(capabilities list push fetch check clean)'
+		'*::subcommand arguments:->args'
 	)
 	_arguments -s -S $args
+
+	case $words[1] in
+	clean)
+		_arguments \
+			'(-f --force)'{-f,--force}'[actually delete files]' \
+			'*:gcrypt URL:'
+		;;
+	check)
+		_arguments \
+			'1:gcrypt URL:_files'
+		;;
+	*)
+		_arguments \
+			'*:gcrypt URL:'
+		;;
+	esac
 }
 
 _git_remote_gcrypt "$@"

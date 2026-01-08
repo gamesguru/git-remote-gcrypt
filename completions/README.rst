@@ -45,7 +45,10 @@ Supported Completions
 
 - ``-h``, ``--help`` - Show help message
 - ``-v``, ``--version`` - Show version information
-- ``--check`` - Check if URL is a gcrypt repository
+- ``check`` - Check if URL is a gcrypt repository
+- ``clean`` - Scan/Clean unencrypted files from remote
+  - ``-f``, ``--force`` - Actually delete files during clean
+- ``--check`` - (Legacy) Check if URL is a gcrypt repository
 
 Notes
 =====

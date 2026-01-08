@@ -1,6 +1,6 @@
 #!/bin/bash
-# Test: --clean command removes unencrypted files
-# This test verifies that git-remote-gcrypt --clean correctly identifies
+# Test: clean command removes unencrypted files
+# This test verifies that git-remote-gcrypt clean correctly identifies
 # and removes unencrypted files from a remote.
 
 set -e

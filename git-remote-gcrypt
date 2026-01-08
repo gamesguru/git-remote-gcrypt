@@ -776,7 +776,7 @@ ensure_connected()
 						echo_info "Found the following unexpected files:"
 						echo_info "$early_bad_files" | head -n 5 | sed 's/^/  /' >&2
 						echo_info ""
-						echo_info "To fix: use 'git-remote-gcrypt --clean $URL' to remove these files,"
+						echo_info "To fix: use 'git-remote-gcrypt clean --force $URL' to remove these files,"
 						echo_info "or set 'git config gcrypt.allow-unencrypted-remote true' to ignore."
 						exit 1
 					fi

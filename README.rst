@@ -256,13 +256,33 @@ Each item extends until newline, and matches one of the following:
 Detecting gcrypt repos
 ======================
 
-To detect if a git url is a gcrypt repo, use: ``git-remote-gcrypt --check url``
+To detect if a git url is a gcrypt repo, use::
+
+    git-remote-gcrypt check url
+
+(Legacy syntax ``--check`` is also supported).
+
 Exit status is 0 if the repo exists and can be decrypted, 1 if the repo
 uses gcrypt but could not be decrypted, and 100 if the repo is not
 encrypted with gcrypt (or could not be accessed).
 
 Note that this has to fetch the repo contents into the local git
 repository, the same as is done when using a gcrypt repo.
+
+Cleaning gcrypt repos
+=====================
+
+To scan for unencrypted files in a remote gcrypt repo, use::
+
+    git-remote-gcrypt clean [url|remote]
+
+If no URL or remote is specified, ``git-remote-gcrypt`` will list all
+available ``gcrypt::`` remotes.
+
+By default, this command only performs a scan. To actually remove the
+unencrypted files, you must use the ``--force`` (or ``-f``) flag::
+
+    git-remote-gcrypt clean url --force
 
 Known issues
 ============
