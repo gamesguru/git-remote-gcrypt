@@ -20,7 +20,7 @@ _git_remote_gcrypt() {
 		;;
 	check)
 		_arguments \
-			'1:gcrypt URL:_files'
+			'*:gcrypt URL: _alternative "remotes:gcrypt remote:($(git remote -v 2>/dev/null | grep "gcrypt::" | awk "{print \$1}" | sort -u))" "files:file:_files"'
 		;;
 	*)
 		_arguments \
