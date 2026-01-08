@@ -22,6 +22,9 @@ export PATH="$SCRIPT_DIR:$PATH"
 # Suppress git advice messages
 GIT="git -c advice.defaultBranchName=false"
 
+# --------------------------------------------------
+# Set up test environment
+# --------------------------------------------------
 # Create temp directory
 tempdir=$(mktemp -d)
 trap 'rm -rf "$tempdir"' EXIT
@@ -45,91 +48,79 @@ $GIT update-ref refs/heads/master "$COMMIT"
 
 print_info "Created dirty remote with 2 unencrypted files"
 
-# Test 1: clean without URL/remotes shows usage
-print_info "Test 1: Usage message..."
-# First, ensure no gcrypt remotes in a fresh tmp repo
-mkdir "$tempdir/no-remotes"
-cd "$tempdir/no-remotes"
-$GIT init >/dev/null
-output=$("$SCRIPT_DIR/git-remote-gcrypt" clean 2>&1 || :)
-if echo "$output" | grep -q "Usage: git-remote-gcrypt clean"; then
-	print_success "clean shows usage when no URL/remote found"
-else
-	print_err "clean should show usage when no URL/remote found"
-	echo "$output"
-	exit 1
-fi
+# Test helper
+assert_grep() {
+	local pattern="$1"
+	local input="$2"
+	local msg="$3"
+	if echo "$input" | grep -q "$pattern"; then
+		print_success "$msg"
+	else
+		print_err "$msg - Pattern '$pattern' not found"
+		echo "Output: $input"
+		exit 1
+	fi
+}
 
-# Test 2: clean (default) is scan-only
+# --------------------------------------------------
+# Test 1: Usage message when no remotes found
+# --------------------------------------------------
+print_info "Test 1: Usage message..."
+mkdir "$tempdir/empty" && cd "$tempdir/empty" && $GIT init >/dev/null
+output=$("$SCRIPT_DIR/git-remote-gcrypt" clean 2>&1 || :)
+assert_grep "Usage: git-remote-gcrypt clean" "$output" "clean shows usage when no URL/remote found"
+
+# --------------------------------------------------
+# Test 2: Default scan-only mode
+# --------------------------------------------------
 print_info "Test 2: Default scan-only mode..."
-# Go to the remote repo (it is a git repo, so git-remote-gcrypt can run)
 cd "$tempdir/remote.git"
 output=$("$SCRIPT_DIR/git-remote-gcrypt" clean "$tempdir/remote.git" 2>&1)
-if echo "$output" | grep -q "secret1.txt" && echo "$output" | grep -q "NOTE: This is a scan"; then
-	print_success "clean defaults to scan-only? OK."
-else
-	print_err "clean defaults scan? Failed!"
-	echo "$output"
-	exit 1
-fi
+assert_grep "secret1.txt" "$output" "clean identifies unencrypted files"
+assert_grep "NOTE: This is a scan" "$output" "clean defaults to scan-only mode"
 
-# Verify files still exist
-if $GIT -C "$tempdir/remote.git" ls-tree HEAD | grep -q "secret1.txt"; then
+if $GIT ls-tree HEAD | grep -q "secret1.txt"; then
 	print_success "Files still exist after default scan"
 else
 	print_err "Default scan incorrectly deleted files!"
 	exit 1
 fi
 
-# Test 3: Scan by remote name...
-print_info "Test 3: Scan by remote name..."
-$GIT init "$tempdir/client" >/dev/null
-cd "$tempdir/client"
+# --------------------------------------------------
+# Test 3: Remote resolution
+# --------------------------------------------------
+print_info "Test 3: Remote resolution..."
+mkdir -p "$tempdir/client" && cd "$tempdir/client" && $GIT init >/dev/null
 $GIT remote add origin "$tempdir/remote.git"
 output=$("$SCRIPT_DIR/git-remote-gcrypt" clean origin 2>&1)
-if echo "$output" | grep -q "Checking remote: $tempdir/remote.git"; then
-	print_success "clean resolved 'origin' to URL"
-else
-	print_err "clean failed to resolve 'origin'"
-	echo "$output"
-	exit 1
-fi
+assert_grep "Checking remote: $tempdir/remote.git" "$output" "clean resolved 'origin' to URL"
 
-# Test 4: clean (no args) lists available remotes but doesn't proceed
+# --------------------------------------------------
+# Test 4: Remote listing
+# --------------------------------------------------
 print_info "Test 4: Remote listing..."
-# Add a gcrypt:: remote to enable listing
 $GIT remote add gcrypt-origin "gcrypt::$tempdir/remote.git"
 output=$("$SCRIPT_DIR/git-remote-gcrypt" clean 2>&1 || :)
-if echo "$output" | grep -q "Available gcrypt remotes:" && echo "$output" | grep -q "gcrypt-origin"; then
-	print_success "clean lists available remotes when no URL/remote specified"
-else
-	print_err "clean failed to list available remotes"
-	echo "$output"
-	exit 1
-fi
+assert_grep "Available gcrypt remotes:" "$output" "clean lists remotes"
+assert_grep "gcrypt-origin" "$output" "clean listed 'gcrypt-origin'"
 
-# Test 5: clean --force deletes files
+# --------------------------------------------------
+# Test 5: Force cleanup
+# --------------------------------------------------
 print_info "Test 5: Force cleanup..."
-"$SCRIPT_DIR/git-remote-gcrypt" clean "$tempdir/remote.git" --force 2>&1
-
-# Verify files are gone
+"$SCRIPT_DIR/git-remote-gcrypt" clean "$tempdir/remote.git" --force >/dev/null 2>&1
 if $GIT -C "$tempdir/remote.git" ls-tree HEAD 2>/dev/null | grep -q "secret"; then
-	print_err "Files still exist after cleanup!"
-	$GIT -C "$tempdir/remote.git" ls-tree HEAD
+	print_err "Files still exist after force cleanup!"
 	exit 1
 else
 	print_success "Files removed after clean --force"
 fi
 
-# Test 6: check command is recognized
+# --------------------------------------------------
+# Test 6: check command
+# --------------------------------------------------
 print_info "Test 6: check command..."
 output=$("$SCRIPT_DIR/git-remote-gcrypt" check "$tempdir/remote.git" 2>&1 || :)
-if echo "$output" | grep -q "gcrypt: Checking remote:"; then
-	print_success "check command is recognized"
-else
-	print_err "check command failed"
-	echo "$output"
-	exit 1
-fi
+assert_grep "gcrypt: Checking remote:" "$output" "check command is recognized"
 
 print_success "All clean/check command tests passed!"

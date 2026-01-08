@@ -124,10 +124,10 @@ while getopts "hv-:" opt; do
 					exit 0
 					;;
 				check)
-					# Allow --check to pass through to the main logic at the bottom
+					# Allow check to pass through to the main logic at the bottom
 					;;
 				clean)
-					# Allow --clean to pass through to the main logic at the bottom
+					# Allow clean to pass through to the main logic at the bottom
 					;;
 				*)
 					echo "Unknown option: --$OPTARG" >&2
@@ -752,7 +752,7 @@ ensure_connected()
 	# Before GPG validation, check if the remote has unencrypted files.
 	# This prevents the GPG error from masking the privacy leak warning.
 	# Skip this check if we are explicitly running the clean command.
-	if [ "$NAME" != "dummy-gcrypt-clean" ] && ! isurl sftp "$URL" && ! isurl rsync "$URL" && ! isurl rclone "$URL" && ! islocalrepo "$URL"; then
+	if [ "$NAME" != "gcrypt-clean" ] && ! isurl sftp "$URL" && ! isurl rsync "$URL" && ! isurl rclone "$URL" && ! islocalrepo "$URL"; then
 		# It's a gitception backend - do early safety check
 		# Fetch the default branch to see what files exist
 		# shellcheck disable=SC3043
@@ -1361,7 +1361,7 @@ gcrypt_main_loop()
 	done
 }
 
-if [ "$NAME" = "dummy-gcrypt-check" ]; then
+if [ "$NAME" = "gcrypt-check" ]; then
 	# URL resolution logic
 	if [ -z "$URL" ]; then
 		remotes=$(git remote -v | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
@@ -1390,7 +1390,7 @@ if [ "$NAME" = "dummy-gcrypt-check" ]; then
 	then
 		exit 100
 	fi
-elif [ "$NAME" = "dummy-gcrypt-clean" ]; then
+elif [ "$NAME" = "gcrypt-clean" ]; then
 	# URL resolution logic
 	if [ -z "$URL" ]; then
 		remotes=$(git remote -v | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
