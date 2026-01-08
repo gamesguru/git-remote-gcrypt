@@ -26,7 +26,7 @@ _git_remote_gcrypt() {
 			return 0
 			;;
 		check)
-			local remotes=$(git remote -v 2>/dev/null | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
+			local remotes=$(git remote 2>/dev/null || :)
 			COMPREPLY=($(compgen -W "$remotes" -- "$cur"))
 			return 0
 			;;
