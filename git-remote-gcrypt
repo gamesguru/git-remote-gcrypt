@@ -32,6 +32,7 @@ Packkey_bytes=63  # nbr random bytes for packfile keys, any >= 256 bit is ok
 Hashtype=SHA256   # SHA512 SHA384 SHA256 SHA224 supported.
 VERSION="@@DEV_VERSION@@"
 
+
 # Help function
 show_help() {
 	cat >&2 <<EOF
@@ -64,24 +65,24 @@ EOF
 
 # Handle subcommands early
 case "$1" in
-	check|--check|clean)
-		cmd="${1#--}"
-		NAME="gcrypt-$cmd"
+	check|--check)
+		NAME=gcrypt-check
+		URL=$2
+		;;
+	clean)
+		NAME=gcrypt-clean
 		shift
 		FORCE_CLEAN=
 		URL=
 		while [ $# -gt 0 ]; do
 			case "$1" in
-				--force|-f) 
-					[ "$cmd" = "clean" ] || { echo "Unknown option for check: $1" >&2; exit 1; }
-					FORCE_CLEAN=yes
-					;;
-				-*) echo "Unknown option for $cmd: $1" >&2; exit 1 ;;
+				--force|-f) FORCE_CLEAN=yes ;;
+				-*) echo "Unknown option: $1" >&2; exit 1 ;;
 				*)
 					if [ -z "$URL" ]; then
 						URL="$1"
 					else
-						echo "Error: Multiple URLs/remotes provided to $cmd" >&2
+						echo "Error: Multiple URLs/remotes provided to clean" >&2
 						exit 1
 					fi
 					;;
@@ -211,7 +212,6 @@ Recipients=
 # xfeed: The most basic output function puts $1 into the stdin of $2..$#
 xfeed()
 {
-	# shellcheck disable=SC3043
 	local input_=""
 	input_=$1; shift
 	"$@" <<EOF
@@ -245,6 +245,8 @@ isurl() { isnull "${2%%"$1"://*}"; }
 islocalrepo() { isnull "${1##/*}" && [ ! -e "$1/HEAD" ]; }
 
 xgrep() { command grep "$@" || : ; }
+
+
 
 # Resolve URL or remote name, or list remotes if empty
 resolve_url() {
@@ -289,7 +291,6 @@ Newline="
 # $1 is return var, $2 is value appended with newline separator
 append_to()
 {
-	# shellcheck disable=SC3043
 	local f_append_tmp_=""
 	eval f_append_tmp_=\$"${1#@}"
 	isnull "$f_append_tmp_" || f_append_tmp_=$f_append_tmp_$Newline
@@ -301,7 +302,6 @@ append_to()
 # $2 input value
 pick_fields_1_2()
 {
-	# shellcheck disable=SC3043
 	local f_ret="" f_one="" f_two=""
 	while read -r f_one f_two _ # from << here-document
 	do
@@ -320,7 +320,6 @@ EOF
 #  we instead remove all lines matching
 filter_to()
 {
-	# shellcheck disable=SC3043
 	local f_neg="" f_line="" f_ret="" IFS=""
 	isnoteq "$1" "!" || { f_neg=negate; shift; }
 	IFS=$Newline
@@ -335,7 +334,6 @@ filter_to()
 # Output the number of lines in $1
 line_count()
 {
-	# shellcheck disable=SC3043
 	local IFS=""
 	IFS=$Newline
 	# shellcheck disable=SC2086
@@ -355,7 +353,6 @@ rsynclocation ()
 gitception_get()
 {
 	# Take care to preserve FETCH_HEAD
-	# shellcheck disable=SC3043
 	local ret_=: obj_id="" fet_head="$GIT_DIR/FETCH_HEAD"
 	if [ -e "$fet_head" ]; then
 		command mv -f "$fet_head" "$fet_head.$$~" || :
@@ -390,7 +387,6 @@ EOF
 # Get 'tree' from $1, change file $2 to obj id $3
 update_tree()
 {
-	# shellcheck disable=SC3043
 	local tab_="	"
 	# $2 is a filename from the repo format
 	(set +e;
@@ -403,7 +399,6 @@ update_tree()
 # depends on previous GET to set $Gref and depends on PUT_FINAL later
 gitception_put()
 {
-	# shellcheck disable=SC3043
 	local obj_id="" tree_id="" commit_id=""
 	obj_id=$(git hash-object -w --stdin) &&
 		tree_id=$(update_tree "$Gref" "$2" "$obj_id") &&
@@ -415,7 +410,6 @@ gitception_put()
 # depends on previous GET like put
 gitception_remove()
 {
-	# shellcheck disable=SC3043
 	local tree_id="" commit_id="" tab_="	"
 	# $2 is a filename from the repo format
 	tree_id=$(git ls-tree "$Gref" | awk -F'\t' -v f="$2" '$2 != f' | git mktree) &&
@@ -425,7 +419,6 @@ gitception_remove()
 
 gitception_new_repo()
 {
-	# shellcheck disable=SC3043
 	local commit_id="" empty_tree=4b825dc642cb6eb9a060e54bf8d69288fbee4904
 	# get any file to update Gref, and if it's not updated we create empty
 	git update-ref -d "$Gref" || :
@@ -531,7 +524,6 @@ PUTREPO()
 # For repo $1, delete all newline-separated files in $2
 REMOVE()
 {
-	# shellcheck disable=SC3043
 	local fn_=""
 	print_debug "REMOVE $1 $2"
 	if isurl sftp "$1"
@@ -603,7 +595,6 @@ PRIVENCRYPT()
 # $1 is the match for good signature, $2 is the textual signers list
 PRIVDECRYPT()
 {
-	# shellcheck disable=SC3043
 	local status_="" signer_=""
 	exec 4>&1 &&
 	status_=$(rungpg --status-fd 3 -q -d 3>&1 1>&4 || {
@@ -638,7 +629,6 @@ genkey()
 
 gpg_hash()
 {
-	# shellcheck disable=SC3043
 	local hash_=""
 	hash_=$(rungpg --with-colons --print-md "$1" | tr A-F a-f)
 	hash_=${hash_#:*:}
@@ -684,7 +674,7 @@ make_new_repo()
 # $1 return var for goodsig match, $2 return var for signers text
 read_config()
 {
-	# shellcheck disable=SC3043,SC2034
+	# shellcheck disable=SC2034
 	local recp_="" r_tail="" r_keyinfo="" r_keyfpr="" gpg_list="" cap_="" conf_part="" good_sig="" signers_=""
 	Conf_signkey=$(git config --get "remote.$NAME.gcrypt-signingkey" '.+' ||
 		git config --path user.signingkey || :)
@@ -761,7 +751,6 @@ read_config()
 
 ensure_connected()
 {
-	# shellcheck disable=SC3043
 	local manifest_="" r_repoid="" r_name="" url_frag="" r_sigmatch="" r_signers="" \
 		tmp_manifest="" tmp_stderr="" early_bad_files=""
 
@@ -777,7 +766,6 @@ ensure_connected()
 	if [ "$NAME" != "gcrypt-clean" ] && ! isurl sftp "$URL" && ! isurl rsync "$URL" && ! isurl rclone "$URL" && ! islocalrepo "$URL"; then
 		# It's a gitception backend - do early safety check
 		# Fetch the default branch to see what files exist
-		# shellcheck disable=SC3043
 		local check_files=""
 		git fetch --quiet "$URL" "refs/heads/master:refs/gcrypt/safety-check" 2>/dev/null ||
 		git fetch --quiet "$URL" "refs/heads/main:refs/gcrypt/safety-check" 2>/dev/null || true
@@ -909,7 +897,6 @@ ensure_connected()
 # $3 the key
 get_verify_decrypt_pack()
 {
-	# shellcheck disable=SC3043
 	local rcv_id="" tmp_encrypted=""
 	tmp_encrypted="$Tempdir/packF"
 	GET "$URL" "$2" "$tmp_encrypted" &&
@@ -924,7 +911,6 @@ get_verify_decrypt_pack()
 # $1 destdir (when repack, else "")
 get_pack_files()
 {
-	# shellcheck disable=SC3043
 	local pack_id="" r_pack_key_line="" htype_="" pack_="" key_=""
 	while IFS=': ' read -r _ htype_ pack_ # <<here-document
 	do
@@ -959,7 +945,6 @@ get_pack_files()
 # $1 return var for list of packfiles to delete
 repack_if_needed()
 {
-	# shellcheck disable=SC3043
 	local n_="" m_="" kline_="" r_line="" r_keep_packlist="" r_del_list=""
 
 	isnonnull "$Packlist" || return 0
@@ -1013,7 +998,6 @@ do_capabilities()
 
 do_list()
 {
-	# shellcheck disable=SC3043
 	local obj_id="" ref_name="" line_=""
 	ensure_connected
 
@@ -1036,7 +1020,6 @@ do_list()
 do_fetch()
 {
 	# Download packs in the manifest that don't appear in have_packs
-	# shellcheck disable=SC3043
 	local pneed_="" premote_=""
 
 	ensure_connected
@@ -1062,7 +1045,6 @@ do_push()
 	# Each git packfile is encrypted and then named for the encrypted
 	# file's hash. The manifest is updated with the pack id.
 	# The manifest is encrypted.
-	# shellcheck disable=SC3043
 	local r_revlist="" pack_id="" key_="" obj_="" src_="" dst_="" \
 		r_pack_delete="" tmp_encrypted="" tmp_objlist="" tmp_manifest="" \
 		force_passed=true
@@ -1071,9 +1053,8 @@ do_push()
 # Check if the backend repo has unencrypted files (safety check)
 check_safety()
 {
-	# shellcheck disable=SC3043
 	local bad_files="" remote_files="" valid_files="" f=""
-	
+
 	# We want to check this for 'gitception' backends (git-over-git).
 	# Logic mirrors GET/PUT logic: if not sftp, rsync, rclone, or a Dumb Local Repo (islocalrepo),
 	# then it is a git repo (gitception or implicit).
@@ -1323,7 +1304,6 @@ setup()
 # handle git-remote-helpers protocol
 gcrypt_main_loop()
 {
-	# shellcheck disable=SC3043
 	local input_="" input_inner="" r_args="" temp_key=""
 
 	NAME=$1  # Remote name
