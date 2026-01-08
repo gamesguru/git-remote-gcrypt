@@ -75,7 +75,7 @@ while [ $# -gt 0 ]; do
 			echo "git-remote-gcrypt version $VERSION" >&2
 			exit 0
 			;;
-		check|--check)
+		check)
 			NAME=gcrypt-check
 			URL="$2"
 			shift
