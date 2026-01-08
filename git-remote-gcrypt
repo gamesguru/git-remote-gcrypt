@@ -43,12 +43,11 @@ Usage: Automatically invoked by git when using gcrypt:: URLs
        Or:  https://github.com/spwhitton/git-remote-gcrypt
 
 Options:
-  -h, --help       Show this help message
-  -v, --version    Show version information
-  --check <URL>    Check if URL is a gcrypt repository
-  --clean <URL>    Remove unencrypted files from remote (with confirmation)
-    --clean <URL> --dry-run  Show what would be deleted without deleting
-    --clean <URL> --force    Delete without confirmation
+  help             Show this help message
+  version          Show version information
+  check [URL]      Check if URL is a gcrypt repository
+  clean [URL|REMOTE] Scan/Clean unencrypted files from remote
+    clean -f, --force    Actually delete files (default is scan only)
 
 Git Protocol Commands (for debugging):
   capabilities     List remote helper capabilities
@@ -63,26 +62,67 @@ Environment Variables:
 EOF
 }
 
-# Handle subcommands early (before getopts consumes them)
-# These are not options but subcommands that need their own argument handling
+# Handle subcommands early
 case "$1" in
-	--check)
+	check|--check)
 		NAME=dummy-gcrypt-check
 		URL=$2
 		# Will be handled at the end of the script
 		;;
-	--clean)
+	clean|--clean)
 		NAME=dummy-gcrypt-clean
-		URL=$2
+		shift
 		FORCE_CLEAN=
-		DRY_RUN=
-		if [ "$3" = "--force" ] || [ "$3" = "-f" ]; then
-			FORCE_CLEAN=yes
-		fi
-		if [ "$3" = "--dry-run" ] || [ "$3" = "-n" ]; then
-			DRY_RUN=yes
+		URL=
+		while [ $# -gt 0 ]; do
+			case "$1" in
+				--force|-f) FORCE_CLEAN=yes ;;
+				-*) echo "Unknown option: $1" >&2; exit 1 ;;
+				*)
+					if [ -z "$URL" ]; then
+						URL="$1"
+					else
+						echo "Error: Multiple URLs/remotes provided to clean" >&2
+						exit 1
+					fi
+					;;
+			esac
+			shift
+		done
+
+		# URL resolution logic
+		if [ -z "$URL" ]; then
+			# Auto-detect all gcrypt remotes
+			remotes=$(git remote -v | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
+			if [ -z "$remotes" ]; then
+				echo "Usage: git-remote-gcrypt clean [URL|REMOTE] [-f]" >&2
+				echo "Error: No gcrypt remotes found and no URL/remote specified." >&2
+				exit 1
+			fi
+			num_remotes=$(printf "%s\n" "$remotes" | grep -v '^$' | wc -l | tr -d ' ')
+			if [ "$num_remotes" -eq 1 ]; then
+				URL=$(git config --get "remote.$remotes.url")
+			elif [ "$num_remotes" -gt 1 ]; then
+				echo "Error: Multiple gcrypt remotes found. Please specify one:" >&2
+				echo "$remotes" | sed 's/^/  /' >&2
+				exit 1
+			fi
+		elif ! echo "$URL" | grep -q -E '://|::'; then
+			# Not a URL, check if it's a remote name
+			potential_url=$(git config --get "remote.$URL.url" || :)
+			if [ -n "$potential_url" ]; then
+				URL="$potential_url"
+			fi
 		fi
 		# Will be handled at the end of the script
+		;;
+	help|--help|-h)
+		show_help
+		exit 0
+		;;
+	version|--version|-v)
+		echo "git-remote-gcrypt version $VERSION" >&2
+		exit 0
 		;;
 esac
 
@@ -1347,27 +1387,24 @@ gcrypt_main_loop()
 }
 
 if [ "$NAME" = "dummy-gcrypt-check" ]; then
-	# NAME and URL were set at the top of the script
+	# Check command: NAME and URL were set at the top
+	echo_info "Checking remote: $URL"
 	setup
 	ensure_connected
+	CLEAN_FINAL "$URL"
 	git remote remove "$NAME" 2>/dev/null || true
 	if iseq "$Did_find_repo" "no"
 	then
 		exit 100
 	fi
 elif [ "$NAME" = "dummy-gcrypt-clean" ]; then
-	# Cleanup command: NAME, URL, FORCE_CLEAN, DRY_RUN were set at the top
+	# Cleanup command: NAME, URL, FORCE_CLEAN were set at the top
+	echo_info "Checking remote: $URL"
 
-	if isnull "$URL"; then
-		echo_info "Usage: git-remote-gcrypt --clean <URL> [--force|--dry-run]"
-		echo_info "  Removes unencrypted files from the remote repository."
-		echo_info "  --force, -f     Don't ask for confirmation"
-		echo_info "  --dry-run, -n   Show what would be deleted without deleting"
-		exit 1
-	fi
-	
 	setup
-	ensure_connected
+	if ! ensure_connected; then
+		echo_die "Could not connect to $URL."
+	fi
 	
 	# Get all files in the remote
 	remote_files=$(git ls-tree --name-only "$Gref" 2>/dev/null || :)
@@ -1407,24 +1444,14 @@ elif [ "$NAME" = "dummy-gcrypt-clean" ]; then
 	echo_info "Found the following files to remove:"
 	xecho "$bad_files" | sed 's/^/  /' >&2
 
-	if isnonnull "$DRY_RUN"; then
-		echo_info "(Dry run - no files were deleted)"
+	if isnull "$FORCE_CLEAN"; then
+		echo_info ""
+		echo_info "NOTE: This is a scan of unencrypted files on the remote."
+		echo_info "To actually delete these files, use: git-remote-gcrypt clean $URL --force"
+		echo_info ""
 		CLEAN_FINAL "$URL"
 		git remote remove "$NAME" 2>/dev/null || true
 		exit 0
-	fi
-
-	if isnull "$FORCE_CLEAN"; then
-		echo_info ""
-		echo_info "WARNING: This will permanently delete these files from the remote!"
-		echo_info "Make sure you have a backup (e.g., git clone $URL backup-repo)"
-		echo_info ""
-		printf "Delete these files? [y/N] " >&2
-		read -r ans
-		case "$ans" in
-			[Yy]*) ;;
-			*) echo_info "Aborted."; exit 1 ;;
-		esac
 	fi
 
 	echo_info "Removing files..."
