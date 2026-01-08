@@ -8,7 +8,7 @@ _git_remote_gcrypt() {
 		'(- *)'{-h,--help}'[show help message]'
 		'(- *)'{-v,--version}'[show version information]'
 		'--check[check if URL is a gcrypt repository]:URL:_files'
-		'1:command:(capabilities list push fetch check clean)'
+		'1:command:(capabilities check clean fetch list push)'
 		'*::subcommand arguments:->args'
 	)
 	_arguments -s -S $args

@@ -262,7 +262,7 @@ To detect if a git url is a gcrypt repo, use::
 
 (Legacy syntax ``--check`` is also supported).
 
-Exit status is 0 if the repo exists and can be decrypted, 1 if the repo
+Exit status is 0
 uses gcrypt but could not be decrypted, and 100 if the repo is not
 encrypted with gcrypt (or could not be accessed).
 

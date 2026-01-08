@@ -7,7 +7,7 @@ _git_remote_gcrypt() {
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD - 1]}"
 	opts="-h --help -v --version --check"
-	commands="capabilities list push fetch check clean"
+	commands="capabilities check clean fetch list push"
 
 	# If we're after a subcommand, only offer -h/--help
 	if [[ " $commands " =~ " ${COMP_WORDS[1]:-} " ]]; then

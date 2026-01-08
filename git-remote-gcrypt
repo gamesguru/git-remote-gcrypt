@@ -34,9 +34,7 @@ VERSION="@@DEV_VERSION@@"
 
 
 # Help function
-show_help() {
-	cat >&2 <<EOF
-git-remote-gcrypt version $VERSION
+HELP_TEXT="git-remote-gcrypt version $VERSION
 GPG-encrypted git remote helper
 
 Usage: Automatically invoked by git when using gcrypt:: URLs
@@ -59,89 +57,70 @@ Git Protocol Commands (for debugging):
 Environment Variables:
   GCRYPT_DEBUG=1        Enable verbose debug logging to stderr
   GCRYPT_TRACE=1        Enable shell tracing (set -x) for rsync/curl commands
-  GCRYPT_FULL_REPACK=1  Force full repack when pushing
-EOF
+  GCRYPT_FULL_REPACK=1  Force full repack when pushing"
+
+# Help function
+show_help() {
+	echo "$HELP_TEXT" >&2
 }
 
-# Handle subcommands early
-case "$1" in
-	check|--check)
-		NAME=gcrypt-check
-		URL=$2
-		;;
-	clean)
-		NAME=gcrypt-clean
-		shift
-		FORCE_CLEAN=
-		URL=
-		while [ $# -gt 0 ]; do
-			case "$1" in
-				--force|-f) FORCE_CLEAN=yes ;;
-				-*) echo "Unknown option: $1" >&2; exit 1 ;;
-				*)
-					if [ -z "$URL" ]; then
-						URL="$1"
-					else
-						echo "Error: Multiple URLs/remotes provided to clean" >&2
-						exit 1
-					fi
-					;;
-			esac
-			shift
-		done
-		;;
-	help|--help|-h)
-		show_help
-		exit 0
-		;;
-	version|--version|-v)
-		echo "git-remote-gcrypt version $VERSION" >&2
-		exit 0
-		;;
-esac
-
-# Parse flags
-while getopts "hv-:" opt; do
-	case "$opt" in
-		h)
+# Parse arguments
+while [ $# -gt 0 ]; do
+	case "$1" in
+		help|--help|-h)
 			show_help
 			exit 0
 			;;
-		v)
+		version|--version|-v)
 			echo "git-remote-gcrypt version $VERSION" >&2
 			exit 0
 			;;
-		-)
-			# Handle long options
-			case "$OPTARG" in
-				help)
-					show_help
-					exit 0
-					;;
-				version)
-					echo "git-remote-gcrypt version $VERSION" >&2
-					exit 0
-					;;
-				check)
-					# Allow check to pass through to the main logic at the bottom
-					;;
-				clean)
-					# Allow clean to pass through to the main logic at the bottom
-					;;
-				*)
-					echo "Unknown option: --$OPTARG" >&2
-					exit 1
-					;;
-			esac
+		check|--check)
+			NAME=gcrypt-check
+			URL="$2"
+			shift
 			;;
-		*)
+		clean)
+			NAME=gcrypt-clean
+			shift
+			while [ $# -gt 0 ]; do
+				case "$1" in
+					--force|-f) FORCE_CLEAN=yes ;;
+					-*) echo "Unknown option: $1" >&2; exit 1 ;;
+					*)
+						if [ -z "$URL" ]; then
+							URL="$1"
+						else
+							echo "Error: Multiple URLs/remotes provided to clean" >&2
+							exit 1
+						fi
+						;;
+				esac
+				shift
+			done
+			break # Stop parsing outer loop
+			;;
+		-*)
+			echo "Unknown option: $1" >&2
 			exit 1
 			;;
+		*)
+			# Assume it's the remote name if not already set
+			if [ -z "$NAME" ]; then
+				NAME="$1"
+			elif [ -z "$URL" ]; then
+				URL="$1"
+			fi
+			;;
 	esac
+	shift || :
 done
 
-# Handle subcommand help (e.g., git-remote-gcrypt capabilities --help)
-shift $((OPTIND - 1))
+# If NAME is not set, we might be invoked as a remote helper
+if [ -z "$NAME" ]; then
+	show_help
+	exit 1
+fi
 case "${1:-}" in
 	capabilities)
 		if [ "${2:-}" = "-h" ] || [ "${2:-}" = "--help" ]; then
@@ -251,7 +230,10 @@ xgrep() { command grep "$@" || : ; }
 # Resolve URL or remote name, or list remotes if empty
 resolve_url() {
 	local cmd="$1"
-	if [ -z "$URL" ]; then
+	if [ -z "$URL" ] || [ "$URL" = "$cmd" ]; then
+		# Handle cases where shift might have messed up or URL was empty
+		if [ "$URL" = "$cmd" ]; then URL=""; fi
+		
 		local remotes
 		remotes=$(git remote -v | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
 		echo "Usage: git-remote-gcrypt $cmd [URL|REMOTE]" >&2
@@ -263,10 +245,13 @@ resolve_url() {
 		fi
 		exit 1
 	fi
-	if ! echo "$URL" | grep -q -E '://|::'; then
+	
+	# If it's not a URL, try to resolve as a remote name
+	if ! echo "$URL" | grep -q -E '://|::' || [ -n "${URL##*/*}" ]; then
 		local potential_url
 		potential_url=$(git config --get "remote.$URL.url" || :)
 		if [ -n "$potential_url" ]; then
+			print_debug "Resolved remote '$URL' to '$potential_url'"
 			URL="$potential_url"
 		fi
 	fi
@@ -761,33 +746,24 @@ ensure_connected()
 	
 	# EARLY SAFETY CHECK for gitception backends:
 	# Before GPG validation, check if the remote has unencrypted files.
-	# This prevents the GPG error from masking the privacy leak warning.
-	# Skip this check if we are explicitly running the clean command.
 	if [ "$NAME" != "gcrypt-clean" ] && ! isurl sftp "$URL" && ! isurl rsync "$URL" && ! isurl rclone "$URL" && ! islocalrepo "$URL"; then
-		# It's a gitception backend - do early safety check
-		# Fetch the default branch to see what files exist
 		local check_files=""
 		git fetch --quiet "$URL" "refs/heads/master:refs/gcrypt/safety-check" 2>/dev/null ||
 		git fetch --quiet "$URL" "refs/heads/main:refs/gcrypt/safety-check" 2>/dev/null || true
 
 		if git rev-parse --verify "refs/gcrypt/safety-check" >/dev/null 2>&1; then
 			check_files=$(git ls-tree --name-only "refs/gcrypt/safety-check" 2>/dev/null || :)
-			# Clean up the temp ref
 			git update-ref -d "refs/gcrypt/safety-check" 2>/dev/null || true
 
 			if isnonnull "$check_files"; then
-				# Check if ANY file doesn't match gcrypt pattern (hash filenames)
 				early_bad_files=$(echo "$check_files" | grep -v -E '^[a-f0-9]{56}$|^[a-f0-9]{64}$|^[a-f0-9]{96}$|^[a-f0-9]{128}$' || :)
 				if isnonnull "$early_bad_files"; then
-					# Check config to see if we should ignore
 					if [ "$(git config --bool gcrypt.allow-unencrypted-remote)" != "true" ]; then
 						echo_info "ERROR: Remote repository contains unencrypted or unknown files!"
 						echo_info "To protect your privacy, git-remote-gcrypt will NOT push to this remote."
-						echo_info "Found the following unexpected files:"
-						echo_info "$early_bad_files" | head -n 5 | sed 's/^/  /' >&2
-						echo_info ""
-						echo_info "To fix: use 'git-remote-gcrypt clean --force $URL' to remove these files,"
-						echo_info "or set 'git config gcrypt.allow-unencrypted-remote true' to ignore."
+						echo_info "Found unexpected files: $(echo "$early_bad_files" | head -n 3 | tr '\n' ' ')"
+						echo_info "To see full list of unexpected files, use: git-remote-gcrypt clean --force $URL"
+						echo_info "To fix and remove these files, use: git-remote-gcrypt clean --force $URL"
 						exit 1
 					fi
 				fi
@@ -1441,5 +1417,5 @@ elif [ "$1" = --version ] || [ "$1" = -v ]; then
 	echo "git-remote-gcrypt version $VERSION"
 	exit 0
 else
-	gcrypt_main_loop "$@"
+	gcrypt_main_loop "$NAME" "$URL"
 fi
