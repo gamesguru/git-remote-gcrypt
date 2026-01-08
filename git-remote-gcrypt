@@ -1355,10 +1355,16 @@ elif [ "$NAME" = "gcrypt-clean" ]; then
 	if ! ensure_connected; then
 		echo_die "Could not connect to $URL."
 	fi
-	
+
 	# Get all files in the remote
-	remote_files=$(git ls-tree --name-only "$Gref" 2>/dev/null || :)
-	
+	# For rsync backends, list files directly via rsync --list-only (awk extracts filename).
+	# For git backends, list files from the gcrypt branch tree.
+	if isurl rsync "$URL"; then
+		remote_files=$(rsync --no-motd --list-only "$(rsynclocation "$URL")/" | awk '{print $NF}' | grep -vE '^\.$|^\.\.$' || :)
+	else
+		remote_files=$(git ls-tree --name-only "$Gref" 2>/dev/null || :)
+	fi
+
 	if isnull "$remote_files"; then
 		echo_info "Remote is empty. Nothing to clean."
 		CLEAN_FINAL "$URL"
