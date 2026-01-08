@@ -202,7 +202,7 @@ clean:	##H Clean up
 .PHONY: generate
 generate:	##H Autogenerate README usage & completions
 	@$(call print_info,Generating documentation and completions...)
-	@python3 tests/sync_docs.py
+	python3 tests/sync_docs.py
 	@# Update README.rst Usage section (simple version for now)
 	@sed -i '/Detecting gcrypt repos/,/Exit status is 0/c\Detecting gcrypt repos\n======================\n\nTo detect if a git url is a gcrypt repo, use::\n\n    git-remote-gcrypt check url\n\n(Legacy syntax ``--check`` is also supported).\n\nExit status is 0' README.rst
 	@sed -i '/Cleaning gcrypt repos/,/Known issues/c\Cleaning gcrypt repos\n=====================\n\nTo scan for unencrypted files in a remote gcrypt repo, use::\n\n    git-remote-gcrypt clean [url|remote]\n\nIf no URL or remote is specified, ``git-remote-gcrypt`` will list all\navailable ``gcrypt::`` remotes.\n\nBy default, this command only performs a scan. To actually remove the\nunencrypted files, you must use the ``--force`` (or ``-f``) flag::\n\n    git-remote-gcrypt clean url --force\n\nKnown issues' README.rst
