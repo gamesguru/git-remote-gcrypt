@@ -280,7 +280,7 @@ To scan for unencrypted files in a remote gcrypt repo, use::
    The clean command is unstable and subject to deprecation or renaming and should not be used in scripts.
 
 Supported backends for the clean command are ``rsync://``, ``rclone://``,
-and git-based remotes. The ``sftp://`` backend is not currently supported.
+``sftp://``, and git-based remotes.
 
 If no URL or remote is specified, ``git-remote-gcrypt`` will list all
 available ``gcrypt::`` remotes.
