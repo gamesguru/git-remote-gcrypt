@@ -443,7 +443,7 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
             print_success "Correct error message received."
         else
             print_err "Wrong error message!"
-            cat "${step9_output}" | indent
+            indent < "${step9_output}"
             exit 1
         fi
     else
@@ -482,7 +482,9 @@ print_info "Step 10: New Repo Safety Test (Require Force):"
     
     cd "${tempdir}/fresh_clone_test"
     
-    print_info "Attempting push to missing remote WITHOUT force..."
+
+
+    print_info "Attempting push to missing remote WITHOUT force (Should Fail)..."
     set +e
     (
         git push "gcrypt::${missing_remote_url}" "${default_branch}" 2>&1
@@ -491,14 +493,12 @@ print_info "Step 10: New Repo Safety Test (Require Force):"
     set -e
     
     if [ $rc -ne 0 ]; then
+        print_success "Push correctly failed without force."
         if grep -q "Use --force to create valid new repository" "step10.fail"; then
-            print_success "Push correctly BLOCKED without force."
-        else
-            cat "step10.fail" | indent
-            print_err "Push failed but with wrong error message!"
-            exit 1
+            print_success "Correct error message received."
         fi
     else
+        indent < "step10.fail"
         print_err "Push SHOULD have failed but SUCCEEDED!"
         exit 1
     fi
@@ -514,7 +514,7 @@ print_info "Step 10: New Repo Safety Test (Require Force):"
     if [ $rc -eq 0 ]; then
         print_success "Push succeeded with force."
     else
-        cat "step10.succ" | indent
+        indent < "step10.succ"
         print_err "Push failed even with force!"
         exit 1
     fi

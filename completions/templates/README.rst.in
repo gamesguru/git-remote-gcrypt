@@ -55,24 +55,7 @@ Command Reference
 
 ::
 
-    Options:
-      help             Show this help message
-      version          Show version information
-      check [URL]      Check if URL is a gcrypt repository
-      clean [URL|REMOTE] Scan/Clean unencrypted files from remote
-        clean -f, --force    Actually delete files (default is scan only)
-        clean -i, --init     Scan even if no manifest found (DANGEROUS with --force)
-    
-    Git Protocol Commands (for debugging):
-      capabilities     List remote helper capabilities
-      list             List refs in remote repository
-      push <refspec>   Push refs to remote repository
-      fetch <sha> <ref> Fetch refs from remote repository
-    
-    Environment Variables:
-      GCRYPT_DEBUG=1        Enable verbose debug logging to stderr
-      GCRYPT_TRACE=1        Enable shell tracing (set -x) for rsync/curl commands
-      GCRYPT_FULL_REPACK=1  Force full repack when pushing
+{commands_help}
 
 Configuration
 =============
@@ -103,13 +86,6 @@ The following ``git-config(1)`` variables are supported:
     The problem with using ``gpg -R`` is that to decrypt, gpg tries each
     available secret key in turn until it finds a usable key.
     This can result in unnecessary passphrase prompts.
-
-``gcrypt.allow-unencrypted-remote``
-    Fail safe: by default, git-remote-gcrypt refuses to push to a remote
-    that appears to contain unencrypted files, to avoid exposing your data
-    or overwriting a non-gcrypt repository.
-
-    Setting this to ``true`` disables this safety check.
 
 ``gcrypt.gpg-args``
     The contents of this setting are passed as arguments to gpg.

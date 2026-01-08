@@ -42,8 +42,8 @@ assert() {
 		"${@}"
 	)
 	local -r status=${?}
-	{ [[ ${status} -eq 0 ]] && print_success "Verification succeeded."; } ||
-		print_err "Verification failed."
+	{ [[ ${status} -eq 0 ]] && print_success "Verification succeeded."; } \
+		|| print_err "Verification failed."
 	return "${status}"
 }
 

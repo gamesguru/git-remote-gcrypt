@@ -15,6 +15,9 @@ print_info "Running install logic tests in $SANDBOX..."
 # 2. Copy artifacts
 cp git-remote-gcrypt "$SANDBOX"
 cp README.rst "$SANDBOX" 2>/dev/null || touch "$SANDBOX/README.rst"
+cp completions/templates/README.rst.in "$SANDBOX"
+cp -r completions/ "$SANDBOX"
+cp -r utils/ "$SANDBOX"
 cp install.sh "$SANDBOX"
 cd "$SANDBOX" || exit 2
 
@@ -45,7 +48,7 @@ assert_version() {
 	OUTPUT=$("$INSTALLED_BIN" --version 2>&1 </dev/null)
 
 	# CRITICAL: Use quotes around the variable to handle parentheses correctly
-	if [[ "$OUTPUT" != *"$EXPECTED_SUBSTRING"* ]]; then
+	if [[ $OUTPUT != *"$EXPECTED_SUBSTRING"* ]]; then
 		print_err "FAILED: Expected '$EXPECTED_SUBSTRING' in output."
 		print_err "        Got: '$OUTPUT'"
 		exit 1
