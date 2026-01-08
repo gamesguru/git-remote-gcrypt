@@ -244,6 +244,10 @@ resolve_url() {
 		local potential_url
 		potential_url=$(git config --get "remote.$URL.url" || :)
 		if [ -n "$potential_url" ]; then
+			# Don't clean non-gcrypt remotes!
+			if ! echo "$potential_url" | grep -q '^gcrypt::'; then
+				echo_die "Error: Remote '$URL' is not a gcrypt:: remote."
+			fi
 			print_debug "Resolved remote '$URL' to '$potential_url'"
 			URL="$potential_url"
 		fi
