@@ -43,7 +43,7 @@ def update_readme(path, template_path):
     if not os.path.exists(template_path):
         print(f"Error: Template not found at {template_path}", file=sys.stderr)
         sys.exit(1)
-        
+
     with open(template_path, "r") as f:
         template_content = f.read()
 
@@ -64,39 +64,39 @@ def update_readme(path, template_path):
 
 def update_bash_completion(path, template_path, commands):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    
+
     with open(template_path, "r") as f:
         template = f.read()
-        
+
     cmd_str = " ".join(commands)
     content = template.replace("{commands}", cmd_str)
-    
+
     with open(path, "w") as f:
         f.write(content)
 
 
 def update_zsh_completion(path, template_path, commands):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    
+
     with open(template_path, "r") as f:
         template = f.read()
-        
+
     cmd_str = " ".join(commands)
     content = template.replace("{commands}", cmd_str)
-    
+
     with open(path, "w") as f:
         f.write(content)
 
 
 def update_fish_completion(path, template_path, commands):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    
+
     with open(template_path, "r") as f:
         template = f.read()
-        
+
     cmd_str = " ".join(commands)
     content = template.replace("{not_sc_list}", cmd_str)
-    
+
     with open(path, "w") as f:
         f.write(content)
 
@@ -116,7 +116,7 @@ def main():
     )
 
     print(f"Detected commands: {' '.join(comp_commands)}")
-    
+
     # Bash
     bash_path = os.path.join(root_dir, "completions/bash/git-remote-gcrypt")
     bash_tmpl = os.path.join(templates_dir, "bash.in")
@@ -134,7 +134,7 @@ def main():
     fish_tmpl = os.path.join(templates_dir, "fish.in")
     print(f"Updating Fish completions at: {fish_path}")
     update_fish_completion(fish_path, fish_tmpl, comp_commands)
-    
+
     readme_path = os.path.join(root_dir, "README.rst")
     readme_tmpl = os.path.join(templates_dir, "README.rst.in")
     update_readme(readme_path, readme_tmpl)

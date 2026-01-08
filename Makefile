@@ -20,10 +20,6 @@ _help:
 			print ""; \
 		}' $(MAKEFILE_LIST)
 
-.PHONY: _all
-_all: lint test/installer test/system
-	@$(call print_success,All checks passed!)
-
 .PHONY: vars
 vars:	##H Display all Makefile variables (simple)
 	$(info === Makefile Variables (file/command/line origin) ===)
@@ -32,6 +28,7 @@ vars:	##H Display all Makefile variables (simple)
 			$(info $(shell printf "%-30s" "$(V)") = $(value $(V))) \
 		) \
 	)
+
 
 define print_err
 printf "\033[1;31m%s\033[0m\n" "$(1)"
@@ -86,6 +83,7 @@ lint:	##H Run shellcheck
 	-ruff check $(LINT_LOCS_PY)
 	@$(call print_success,OK.)
 
+
 # --- Test Config ---
 PWD := $(shell pwd)
 COV_ROOT    := $(PWD)/.coverage
@@ -109,7 +107,7 @@ test/installer: check/deps	##H Test installer logic
 
 
 .PHONY: test/purity
-test/purity: check/deps	##H Run logic tests with native shell (As Shipped Integrity Check)
+test/purity: check/deps	##H Run logic tests (with native /bin/sh)
 	@echo "running system tests (native /bin/sh)..."
 	@export GPG_TTY=$$(tty); \
 	 [ -n "$(DEBUG)$(V)" ] && export GCRYPT_DEBUG=1; \
@@ -119,7 +117,7 @@ test/purity: check/deps	##H Run logic tests with native shell (As Shipped Integr
 	 done
 
 .PHONY: test/system
-test/system: check/deps	##H Run coverage tests (Dynamic Bash)
+test/system: check/deps	##H Run logic tests (with bash & coverage)
 	@echo "running system tests (coverage/bash)..."
 	@rm -rf $(COV_SYSTEM)
 	@mkdir -p $(COV_SYSTEM)
@@ -153,6 +151,7 @@ CHECK_COVERAGE = $(if $(call find_coverage_xml,$(1)), \
 	echo "Error: No coverage report found for $(2) in $(1)" ; \
 	exit 1)
 
+
 .PHONY: test/cov _test_cov_internal
 test/cov:	##H Show coverage gaps
 	$(MAKE) _test_cov_internal
@@ -164,8 +163,17 @@ _test_cov_internal:
 	exit $$err
 
 
+
 # Version from git describe (or fallback)
 __VERSION__ := $(shell git describe --tags --always --dirty 2>/dev/null || echo "@@DEV_VERSION@@")
+
+
+.PHONY: generate
+generate:	##H Autogen man docs & shell completions
+	@$(call print_info,Generating documentation and completions...)
+	python3 completions/gen_docs.py
+	@$(call print_success,Generated.)
+
 
 .PHONY: install/, install
 install/: install
@@ -179,9 +187,11 @@ install:	##H Install system-wide
 install/user:	##H make install prefix=~/.local
 	$(MAKE) install prefix=~/.local
 
+
 .PHONY: check/install
 check/install:	##H Verify installation works
 	bash ./tests/verify-system-install.sh
+
 
 .PHONY: uninstall/, uninstall
 uninstall/: uninstall
@@ -199,10 +209,3 @@ uninstall/user:	##H make uninstall prefix=~/.local
 .PHONY: clean
 clean:	##H Clean up
 	rm -rf .coverage .build_tmp
-
-# --- Autogeneration ---
-.PHONY: generate
-generate:	##H Autogenerate README usage & completions
-	@$(call print_info,Generating documentation and completions...)
-	python3 completions/gen_docs.py
-	@$(call print_success,Generated.)
