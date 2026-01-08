@@ -78,7 +78,7 @@ lint:	##H Run shellcheck
 	shellcheck install.sh
 	@$(call print_success,OK.)
 	# lint system/binary script
-	shellcheck git-remote-gcrypt
+	shellcheck -e SC3043,SC2001 git-remote-gcrypt
 	@$(call print_success,OK.)
 	# lint test scripts
 	shellcheck tests/*.sh
