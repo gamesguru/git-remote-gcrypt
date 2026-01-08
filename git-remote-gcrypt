@@ -92,21 +92,16 @@ case "$1" in
 
 		# URL resolution logic
 		if [ -z "$URL" ]; then
-			# Auto-detect all gcrypt remotes
+			# List all gcrypt remotes and exit
 			remotes=$(git remote -v | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
-			if [ -z "$remotes" ]; then
-				echo "Usage: git-remote-gcrypt clean [URL|REMOTE] [-f]" >&2
-				echo "Error: No gcrypt remotes found and no URL/remote specified." >&2
-				exit 1
-			fi
-			num_remotes=$(printf "%s\n" "$remotes" | grep -v '^$' | wc -l | tr -d ' ')
-			if [ "$num_remotes" -eq 1 ]; then
-				URL=$(git config --get "remote.$remotes.url")
-			elif [ "$num_remotes" -gt 1 ]; then
-				echo "Error: Multiple gcrypt remotes found. Please specify one:" >&2
+			echo "Usage: git-remote-gcrypt clean [URL|REMOTE] [-f]" >&2
+			if [ -n "$remotes" ]; then
+				echo "Error: No URL or remote specified. Available gcrypt remotes:" >&2
 				echo "$remotes" | sed 's/^/  /' >&2
-				exit 1
+			else
+				echo "Error: No gcrypt remotes found and no URL/remote specified." >&2
 			fi
+			exit 1
 		elif ! echo "$URL" | grep -q -E '://|::'; then
 			# Not a URL, check if it's a remote name
 			potential_url=$(git config --get "remote.$URL.url" || :)

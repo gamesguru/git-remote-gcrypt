@@ -95,15 +95,15 @@ else
 	exit 1
 fi
 
-# Test 4: clean (no args) automatic discovery
-print_info "Test 4: Automatic discovery..."
-# Add a gcrypt:: remote to enable discovery
+# Test 4: clean (no args) lists available remotes but doesn't proceed
+print_info "Test 4: Remote listing..."
+# Add a gcrypt:: remote to enable listing
 $GIT remote add gcrypt-origin "gcrypt::$tempdir/remote.git"
-output=$("$SCRIPT_DIR/git-remote-gcrypt" clean 2>&1)
-if echo "$output" | grep -q "Checking remote: gcrypt::$tempdir/remote.git"; then
-	print_success "clean discovered gcrypt remotes automatically"
+output=$("$SCRIPT_DIR/git-remote-gcrypt" clean 2>&1 || :)
+if echo "$output" | grep -q "Available gcrypt remotes:" && echo "$output" | grep -q "gcrypt-origin"; then
+	print_success "clean lists available remotes when no URL/remote specified"
 else
-	print_err "clean failed automatic discovery"
+	print_err "clean failed to list available remotes"
 	echo "$output"
 	exit 1
 fi
