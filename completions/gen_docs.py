@@ -22,10 +22,14 @@ def parse_commands(help_text):
     capture = False
     for line in lines:
         line = line.strip()
-        if line.startswith("Options:") or line.startswith("Git Protocol Commands"):
+
+        # Filter out what we don't want in tab completion
+        if line.startswith("Options:"):
             capture = True
             continue
-        if line.startswith("Environment Variables:"):
+        if line.startswith("Git Protocol Commands") or line.startswith(
+            "Environment Variables:"
+        ):
             capture = False
             continue
 
@@ -110,10 +114,8 @@ def main():
     help_text = extract_help_text(script_path)
     commands = parse_commands(help_text)
 
-    # We always want protocol commands in completions too
-    comp_commands = sorted(
-        list(set(commands + ["capabilities", "list", "push", "fetch"]))
-    )
+    # Optional: remove (or add) any custom preferences here
+    comp_commands = commands
 
     print(f"Detected commands: {' '.join(comp_commands)}")
 

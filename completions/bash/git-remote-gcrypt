@@ -7,7 +7,7 @@ _git_remote_gcrypt() {
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD - 1]}"
 	opts="-h --help -v --version --check"
-	commands="capabilities check clean fetch list push"
+	commands="check clean"
 
 	# 1. First argument: complete commands and global options
 	if [[ $COMP_CWORD -eq 1 ]]; then
