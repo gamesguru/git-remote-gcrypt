@@ -760,7 +760,7 @@ ensure_connected()
 						echo_info "ERROR: Remote repository contains unencrypted or unknown files!"
 						echo_info "To protect your privacy, git-remote-gcrypt will NOT push to this remote."
 						echo_info "Found unexpected files: $(echo "$early_bad_files" | head -n 3 | tr '\n' ' ')"
-						echo_info "To see full list of unexpected files, use: git-remote-gcrypt clean --force $URL"
+						echo_info "To see unencrypted files, use: git-remote-gcrypt clean $URL"
 						echo_info "To fix and remove these files, use: git-remote-gcrypt clean --force $URL"
 						exit 1
 					fi
@@ -1354,6 +1354,11 @@ elif [ "$NAME" = "gcrypt-clean" ]; then
 	setup
 	if ! ensure_connected; then
 		echo_die "Could not connect to $URL."
+	fi
+
+	if [ "$Did_find_repo" != "yes" ]; then
+		echo_die "Error: No gcrypt manifest found on remote '$URL'." \
+			"Aborting clean to prevent accidental data loss."
 	fi
 
 	# Get all files in the remote
