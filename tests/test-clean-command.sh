@@ -76,12 +76,30 @@ $GIT config gpg.program "${GNUPGHOME}/gpg"
 $GIT config gcrypt.participants "test@test.com"
 
 # Add multiple unencrypted files
+# Add multiple unencrypted files including nested ones
 echo "SECRET=abc" >"$tempdir/secret1.txt"
 echo "PASSWORD=xyz" >"$tempdir/secret2.txt"
+# Nested file
+mkdir -p "$tempdir/subdir"
+echo "NESTED=123" >"$tempdir/subdir/nested.txt"
+
+echo "SPACE=789" >"$tempdir/Has Space.txt"
+
 BLOB1=$($GIT hash-object -w "$tempdir/secret1.txt")
 BLOB2=$($GIT hash-object -w "$tempdir/secret2.txt")
-TREE=$(echo -e "100644 blob $BLOB1\tsecret1.txt\n100644 blob $BLOB2\tsecret2.txt" | $GIT mktree)
-COMMIT=$(echo "Dirty commit" | $GIT commit-tree "$TREE")
+BLOB3=$($GIT hash-object -w "$tempdir/subdir/nested.txt")
+BLOB4=$($GIT hash-object -w "$tempdir/Has Space.txt")
+
+# Create root tree using index
+export GIT_INDEX_FILE=index.dirty
+$GIT update-index --add --cacheinfo 100644 "$BLOB1" "secret1.txt"
+$GIT update-index --add --cacheinfo 100644 "$BLOB2" "secret2.txt"
+$GIT update-index --add --cacheinfo 100644 "$BLOB3" "subdir/nested.txt"
+$GIT update-index --add --cacheinfo 100644 "$BLOB4" "Has Space.txt"
+TREE=$($GIT write-tree)
+rm index.dirty
+
+COMMIT=$(echo "Dirty commit with nested files" | $GIT commit-tree "$TREE")
 $GIT update-ref refs/heads/master "$COMMIT"
 
 print_info "Created dirty remote with 2 unencrypted files"
@@ -240,6 +258,8 @@ output=$("$SCRIPT_DIR/git-remote-gcrypt" clean --init "gcrypt::$tempdir/remote.g
 assert_grep "WARNING: No gcrypt manifest found, but --init specified" "$output" "--init warns about missing manifest"
 assert_grep "Found the following files to remove" "$output" "--init scan found files"
 assert_grep "secret1.txt" "$output" "--init found secret1.txt"
+assert_grep "subdir/nested.txt" "$output" "--init found nested file in subdir"
+assert_grep "Has Space.txt" "$output" "--init found file with spaces"
 
 # 3. Clean with --init --force should remove files
 "$SCRIPT_DIR/git-remote-gcrypt" clean --init --force "gcrypt::$tempdir/remote.git" >/dev/null 2>&1

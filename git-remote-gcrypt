@@ -1390,7 +1390,7 @@ cmd_clean()
 		echo_info "WARNING: sftp clean support is experimental and may cause data loss."
 		remote_files=$(curl -s -S -k "$URL/" 2>/dev/null | grep -vE '^\.$|^\.\.$' || :)
 	else
-		remote_files=$(git ls-tree --name-only "$Gref" 2>/dev/null || :)
+		remote_files=$(git ls-tree -r --name-only "$Gref" 2>/dev/null || :)
 	fi
 
 	if isnull "$remote_files"; then
@@ -1411,11 +1411,14 @@ cmd_clean()
 	
 	# Find files to delete
 	bad_files=""
+	OIFS="$IFS"
+	IFS="$Newline"
 	for f in $remote_files; do
 		if isnull "$valid_files" || ! xfeed "$valid_files" grep -qxF "$f"; then
 			bad_files="$bad_files$Newline$f"
 		fi
 	done
+	IFS="$OIFS"
 	bad_files="${bad_files#"$Newline"}"
 	
 	if isnull "$bad_files"; then
