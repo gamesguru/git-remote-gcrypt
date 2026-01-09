@@ -149,6 +149,8 @@ print_info "Test 5: Clean Valid Gcrypt Repo..."
 
 # 1. Initialize a valid gcrypt repo
 mkdir "$tempdir/valid.git" && cd "$tempdir/valid.git" && $GIT init --bare >/dev/null
+$GIT config user.email "test@test.com"
+$GIT config user.name "Test"
 cd "$tempdir/client"
 $GIT config user.name "Test"
 $GIT config user.email "test@test.com"
@@ -170,7 +172,7 @@ print_info "Initialized valid gcrypt repo"
 
 # 2. Inject garbage file into the remote git index/tree
 cd "$tempdir/valid.git"
-GREF="refs/gcrypt/gitception"
+GREF="refs/heads/master"
 if ! $GIT rev-parse --verify "$GREF" >/dev/null 2>&1; then
 	print_err "Gref $GREF not found in remote!"
 	exit 1
@@ -221,3 +223,31 @@ output=$("$SCRIPT_DIR/git-remote-gcrypt" check "$tempdir/remote.git" 2>&1 || :)
 assert_grep "gcrypt: Checking remote:" "$output" "check command is recognized"
 
 print_success "All clean/check command tests passed!"
+
+# --------------------------------------------------
+# Test 7: clean --init (Bypass manifest check)
+# --------------------------------------------------
+print_info "Test 7: clean --init (Bypass manifest check)..."
+
+# Reuse the dirty remote from earlier ($tempdir/remote.git) which has secret1.txt and secret2.txt
+
+# 1. Standard clean should fail (as tested in Test 2)
+output=$("$SCRIPT_DIR/git-remote-gcrypt" clean "gcrypt::$tempdir/remote.git" 2>&1 || :)
+assert_grep "Error: No gcrypt manifest found" "$output" "standard clean fails on dirty remote"
+
+# 2. Clean with --init should succeed (scan only)
+output=$("$SCRIPT_DIR/git-remote-gcrypt" clean --init "gcrypt::$tempdir/remote.git" 2>&1 || :)
+assert_grep "WARNING: No gcrypt manifest found, but --init specified" "$output" "--init warns about missing manifest"
+assert_grep "Found the following files to remove" "$output" "--init scan found files"
+assert_grep "secret1.txt" "$output" "--init found secret1.txt"
+
+# 3. Clean with --init --force should remove files
+"$SCRIPT_DIR/git-remote-gcrypt" clean --init --force "gcrypt::$tempdir/remote.git" >/dev/null 2>&1
+
+cd "$tempdir/remote.git"
+if $GIT ls-tree HEAD | grep -q "secret1.txt"; then
+	print_err "--init --force FAILED to remove secret1.txt"
+	exit 1
+else
+	print_success "--init --force removed unencrypted files"
+fi
