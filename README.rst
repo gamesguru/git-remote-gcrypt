@@ -104,13 +104,6 @@ The following ``git-config(1)`` variables are supported:
     available secret key in turn until it finds a usable key.
     This can result in unnecessary passphrase prompts.
 
-``gcrypt.allow-unencrypted-remote``
-    Fail safe: by default, git-remote-gcrypt refuses to push to a remote
-    that appears to contain unencrypted files, to avoid exposing your data
-    or overwriting a non-gcrypt repository.
-
-    Setting this to ``true`` disables this safety check.
-
 ``gcrypt.gpg-args``
     The contents of this setting are passed as arguments to gpg.
     E.g. ``--use-agent``.
