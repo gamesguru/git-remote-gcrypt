@@ -1,7 +1,9 @@
 
 Saturday, 1/10/26
 
-Q: Does the manifest
+Q: Does the manifest... (contain? <incomplete>)
+
+~~~~~~~~~~~~~~~~~~~~~~
 
 The issue here is the second one is a valid, encrypted remote.
 The tool is doing too much work and providing dumb results, at times, by trying to be fancy and smart.

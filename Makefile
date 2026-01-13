@@ -212,6 +212,21 @@ uninstall/user:	##H make uninstall prefix=~/.local
 
 
 
+
+.PHONY: deploy/debian
+deploy/debian:	##H Build Debian package
+	@$(call print_target,deploy/debian)
+	@$(call print_info,Building Debian package...)
+	gbp buildpackage -uc -us
+	@$(call print_success,Built Debian package.)
+
+.PHONY: deploy/redhat
+deploy/redhat:	##H Build RPM package
+	@$(call print_target,deploy/redhat)
+	@$(call print_info,Building RPM package...)
+	rpmbuild -bb redhat/git-remote-gcrypt.spec
+	@$(call print_success,Built RPM package.)
+
 .PHONY: clean
 clean:	##H Clean up
 	rm -rf .coverage .build_tmp

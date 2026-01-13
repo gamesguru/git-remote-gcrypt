@@ -520,8 +520,15 @@ REMOVE()
 		print_debug "Calling rsync..."
 		(
 			if [ -n "${GCRYPT_TRACE:-}" ]; then set -x; fi
+			# rsync needs parent directories included or it won't traverse them
+			echo "$2" | while IFS= read -r f; do
+				d=$(dirname "$f")
+				mkdir -p "$Localdir/$d"
+			done
+
 			# rsync needs stdin for --include-from=-
-			rsync -I -W -v -r --delete --include-from=- \
+			# We include specific files ($2), then include ALL directories (*/), then exclude everything else (*).
+			rsync -I -W -v -r --delete --include-from=- --include='*/' \
 			--exclude='*' "$Localdir"/ "$(rsynclocation "$1")/" >&2
 		) <<EOF
 $2
@@ -750,18 +757,21 @@ early_safety_check()
 		if isnull "$dumb_files"; then
 			return 0
 		fi
-		
+
+		early_bad_files=$(echo "$dumb_files" | grep -v -E '^[a-f0-9]{56}$|^[a-f0-9]{64}$|^[a-f0-9]{96}$|^[a-f0-9]{128}$' || :)
+		if isnull "$early_bad_files"; then
+			return 0
+		fi
+
 		if [ "$(git config --bool gcrypt.allow-unencrypted-remote)" = "true" ]; then
 			return 0
 		fi
 
-		echo_info "ERROR: Remote repository is not empty!"
-		echo_info "To protect your privacy, git-remote-gcrypt will NOT push to this remote"
-		echo_info "unless you force it or clean it."
-		echo_info "Found files: $(echo "$dumb_files" | head -n 3 | tr '\n' ' ')..."
-		echo_info "To see files: git-remote-gcrypt clean $URL"
-		echo_info "To init anyway (DANGEROUS if not empty): git push --force ..."
-		echo_info "OR set gcrypt.allow-unencrypted-remote to true."
+		echo_info "ERROR: Remote repository contains unencrypted or unknown files!"
+		echo_info "To protect your privacy, git-remote-gcrypt will NOT push to this remote."
+		echo_info "Found unexpected files: $(echo "$early_bad_files" | head -n 3 | tr '\n' ' ')"
+		echo_info "To see unencrypted files, use: git-remote-gcrypt clean $URL"
+		echo_info "To fix and remove these files, use: git-remote-gcrypt clean --force $URL"
 		exit 1
 	fi
 
