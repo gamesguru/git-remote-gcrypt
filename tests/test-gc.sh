@@ -46,7 +46,7 @@ dd if=/dev/urandom of=largeblob bs=1K count=100 2>/dev/null # 100KB is enough to
 $GIT add largeblob
 $GIT commit -m "Add large blob" >/dev/null
 echo "Pushing initial data..."
-git push origin master >/dev/null 2>&1 || {
+$GIT push origin master >/dev/null 2>&1 || {
 	echo "Push failed"
 	exit 1
 }

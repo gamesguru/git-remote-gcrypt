@@ -118,7 +118,7 @@ print_info "Step 2: Creating repository with large random files..."
 			random_data_index=$((file_index * random_data_per_file))
 			echo "Writing large file $((file_index + 1))/${total_files} ($((random_data_per_file / 1024 / 1024)) MiB)"
 			head -c "${random_data_per_file}" >"$((file_index)).data" < \
-				<(tail -c "+${random_data_index}" "${random_data_file}" || :)
+				<(tail -c "+$((random_data_index + 1))" "${random_data_file}" || :)
 		done
 		git add -- "${tempdir}/first"
 		git commit -m "Commit #${i}"

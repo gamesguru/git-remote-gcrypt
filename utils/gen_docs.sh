@@ -70,7 +70,7 @@ unset IFS
 
 # 3. Generate README
 echo "Generating $README_OUT..."
-sed "s/{commands_help}/$(echo "$COMMANDS_HELP" | sed 's/[\/&]/\\&/g' | sed ':a;N;$!ba;s/\n/\\n/g')/" "$README_TMPL" >"$README_OUT"
+sed "s/{commands_help}/$(echo "$COMMANDS_HELP" | sed 's/[\/&]/\\&/g' | awk '{printf "%s\\n", $0}')/" "$README_TMPL" >"$README_OUT"
 
 # 4. Generate Bash
 echo "Generating Bash completions..."
@@ -81,7 +81,7 @@ echo "Generating Zsh completions..."
 # Zsh substitution is tricky with the complex string.
 # We'll stick to replacing {commands} and {clean_flags_zsh}
 # Need to escape special chars for sed
-SAFE_CMDS=$(echo "$COMMANDS_LIST" | sed 's/ / /g') # just space separated
+# safe_cmds removed as unused
 # For clean_flags_zsh, since it contains quotes and braces, we need care.
 # We'll read the template line by line? No, sed is standard.
 # We use a temp file for the replacement string to avoid sed escaping hell for large blocks?

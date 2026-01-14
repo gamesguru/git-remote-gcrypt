@@ -42,8 +42,13 @@ define print_success
 printf "\033[1;34m✓ %s\033[0m\n" "$(1)"
 endef
 
+
 define print_info
 printf "\033[1;36m%s\033[0m\n" "$(1)"
+endef
+
+define print_target
+printf "\033[1;35m-> %s\033[0m\n" "$(1)"
 endef
 
 
@@ -96,7 +101,7 @@ test/:	##H Run tests (purity checks only if kcov missing)
 	@if command -v kcov >/dev/null 2>&1; then \
 		$(MAKE) test/installer test/system test/cov; \
 	else \
-		$(call print_warn,kcov not found: skipping coverage/bash tests.); \
+		printf "\033[1;33mkcov not found: skipping coverage/bash tests.\033[0m\n"; \
 		$(MAKE) test/purity; \
 	fi
 
@@ -128,7 +133,7 @@ test/system:	##H Run logic tests (with bash & coverage)
 	@rm -rf $(COV_SYSTEM)
 	@mkdir -p $(COV_SYSTEM)
 	@export GPG_TTY=$$(tty); \
-	 [ -n "$(DEBUG)$(V)" ] && export GCRYPT_DEBUG=1 && print_warn "Debug mode enabled"; \
+	 [ -n "$(DEBUG)$(V)" ] && export GCRYPT_DEBUG=1 && printf "\033[1;33mDebug mode enabled\033[0m\n"; \
 	 export GIT_CONFIG_PARAMETERS="'gcrypt.gpg-args=--pinentry-mode loopback --no-tty'"; \
 	 sed -i 's|^#!/bin/sh|#!/bin/bash|' git-remote-gcrypt; \
 	 trap "sed -i 's|^#!/bin/bash|#!/bin/sh|' git-remote-gcrypt" EXIT; \

@@ -17,7 +17,8 @@ trap 'rm -Rf -- "$tempdir"' EXIT
 repo_root=$(git rev-parse --show-toplevel)
 test_version=$(git describe --tags --always --dirty 2>/dev/null || echo "test")
 cp "$repo_root/git-remote-gcrypt" "$tempdir/git-remote-gcrypt"
-sed -i "s/@@DEV_VERSION@@/$test_version/" "$tempdir/git-remote-gcrypt"
+sed "s/@@DEV_VERSION@@/$test_version/" "$tempdir/git-remote-gcrypt" >"$tempdir/git-remote-gcrypt.tmp"
+mv "$tempdir/git-remote-gcrypt.tmp" "$tempdir/git-remote-gcrypt"
 chmod +x "$tempdir/git-remote-gcrypt"
 PATH=$tempdir:${PATH}
 export PATH
@@ -82,7 +83,6 @@ git remote add origin "gcrypt::${tempdir}/remote-repo"
 git config remote.origin.gcrypt-participants "test@example.com"
 git config remote.origin.gcrypt-signingkey "test@example.com"
 
-# Force push is required to initialize gcrypt over an existing repo
 # Force push is required to initialize gcrypt over an existing repo
 # Now EXPECT FAILURE because of our new safety check!
 print_info "Attempting push to dirty repo (should fail due to safety check)..."

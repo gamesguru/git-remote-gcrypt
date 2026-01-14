@@ -102,7 +102,7 @@ rm index.dirty
 COMMIT=$(echo "Dirty commit with nested files" | $GIT commit-tree "$TREE")
 $GIT update-ref refs/heads/master "$COMMIT"
 
-print_info "Created dirty remote with 2 unencrypted files"
+print_info "Created dirty remote with 4 unencrypted files"
 
 # Test helper
 assert_grep() {

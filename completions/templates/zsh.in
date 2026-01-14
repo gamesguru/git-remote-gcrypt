@@ -12,7 +12,7 @@ _git_remote_gcrypt() {
 	)
 	_arguments -s -S $args
 
-	case $words[1] in
+	case $line[1] in
 	clean)
 		_arguments \
 			{clean_flags_zsh} \

@@ -76,7 +76,8 @@ trap "rm -Rf -- '${tempdir}'" EXIT
 repo_root=$(git rev-parse --show-toplevel)
 test_version=$(git describe --tags --always --dirty 2>/dev/null || echo "test")
 cp "$repo_root/git-remote-gcrypt" "$tempdir/git-remote-gcrypt"
-sed -i "s/@@DEV_VERSION@@/$test_version/" "$tempdir/git-remote-gcrypt"
+sed "s/@@DEV_VERSION@@/$test_version/" "$tempdir/git-remote-gcrypt" > "$tempdir/git-remote-gcrypt.tmp"
+mv "$tempdir/git-remote-gcrypt.tmp" "$tempdir/git-remote-gcrypt"
 chmod +x "$tempdir/git-remote-gcrypt"
 PATH=$tempdir:${PATH}
 readonly PATH
@@ -127,7 +128,6 @@ random_data_size=$(( total_files * random_data_per_file ))
 random_data_file="${tempdir}/data"
 head -c "${random_data_size}" "${random_source}" > "${random_data_file}"
 
-# Create gpg key and subkey.
 # Create gpg key and subkey.
 print_info "Step 1: Creating a new GPG key and subkey to use for testing:"
 (
@@ -386,7 +386,7 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
     
     # DEBUG: Dump directory listing to stdout
     print_info "DEBUG: Listing ${tempdir}/second.git contents:"
-    find "${tempdir}/second.git" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort | indent
+    find "${tempdir}/second.git" -mindepth 1 -maxdepth 1 -exec basename {} \; | sort | indent
 
     # Use find to robustly locate manifest files (56-64 hex chars)
     # matching basename explicitly via grep. Using sed for portable basename extraction.

@@ -34,7 +34,7 @@ else
 	fi
 	VERSION=$(grep ^git-remote-gcrypt debian/changelog | head -n 1 | awk '{print $2}' | tr -d '()')
 fi
-VERSION="$VERSION (deb running on $OS_IDENTIFIER)"
+VERSION="$VERSION ($OS_IDENTIFIER)"
 
 echo "Detected version: $VERSION"
 

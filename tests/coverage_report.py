@@ -13,6 +13,14 @@ import xml.etree.ElementTree as E
 xml_file = os.environ.get("XML_FILE")
 patt = os.environ.get("PATT")
 
+if not xml_file:
+    print("Error: XML_FILE environment variable is not set.")
+    sys.exit(1)
+
+if not patt:
+    print("Error: PATT environment variable is not set.")
+    sys.exit(1)
+
 tree = E.parse(xml_file)
 missed = []
 total_lines = 0

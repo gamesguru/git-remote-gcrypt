@@ -25,4 +25,16 @@ else
 	echo "Man page not found: $MAN_PATH"
 fi
 
+# Completions
+COMP_BASH="$DESTDIR$prefix/share/bash-completion/completions/git-remote-gcrypt"
+COMP_ZSH="$DESTDIR$prefix/share/zsh/site-functions/_git-remote-gcrypt"
+COMP_FISH="$DESTDIR$prefix/share/fish/vendor_completions.d/git-remote-gcrypt.fish"
+
+for f in "$COMP_BASH" "$COMP_ZSH" "$COMP_FISH"; do
+	if [ -f "$f" ]; then
+		verbose rm -f "$f"
+		echo "Removed completion: $f"
+	fi
+done
+
 echo "Uninstallation complete."

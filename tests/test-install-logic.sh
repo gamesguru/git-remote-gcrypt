@@ -84,7 +84,7 @@ else
 fi
 
 # Use the identified OS for the expected string
-EXPECTED_TAG="5.5.5-1 (deb running on $OS_IDENTIFIER)"
+EXPECTED_TAG="5.5.5-1 ($OS_IDENTIFIER)"
 
 assert_version "$EXPECTED_TAG"
 
@@ -94,7 +94,10 @@ rm -rf "${SANDBOX:?}/usr"
 export DESTDIR="$SANDBOX/pkg_root"
 export prefix="/usr"
 
-"bash" "$INSTALLER" >/dev/null 2>&1
+"bash" "$INSTALLER" >/dev/null 2>&1 || {
+	print_err "Installer FAILED"
+	exit 1
+}
 
 if [ -f "$SANDBOX/pkg_root/usr/bin/git-remote-gcrypt" ]; then
 	printf "  ✓ %s\n" "DESTDIR honored"

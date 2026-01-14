@@ -23,7 +23,6 @@ jobs:
 
       # python3-docutils enables rst2man
       - name: Install kcov Dependencies
-        if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y binutils-dev build-essential cmake git \
@@ -35,7 +34,7 @@ jobs:
       - name: Build and Install kcov
         if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
-          git clone https://github.com/SimonKagstrom/kcov.git
+          git clone --branch v42 --depth 1 https://github.com/SimonKagstrom/kcov.git
           cd kcov
           mkdir build && cd build
           cmake ..

@@ -193,7 +193,7 @@ print_info "Step 5: Unhappy Path - Test clone with NO matching keys..."
 	(
 		set +e
 		if git clone -b "${default_branch}" "gcrypt::${tempdir}/second.git#${default_branch}" -- "${tempdir}/fail_test"; then
-			print_info "ERROR: Clone succeeded unexpectedly with empty keyring!"
+			print_err "ERROR: Clone succeeded unexpectedly with empty keyring!"
 			exit 1
 		fi
 	) 2>&1 | indent

@@ -1398,7 +1398,7 @@ get_remote_file_list()
 	if isurl rsync "$URL"; then
 		r_files=$(rsync --no-motd --list-only "$(rsynclocation "$URL")/" | awk '{print $NF}' | grep -vE '^\.$|^\.\.$') || return 1
 	elif isurl rclone "$URL"; then
-		r_files=$(rclone lsf "$(rclonelocation "$URL")") || return 1
+		r_files=$(rclone lsf "${URL#rclone://}") || return 1
 	elif isurl sftp "$URL"; then
 		r_files=$(curl -s -S -k "$URL/" | grep -vE '^\.$|^\.\.$') || return 1
 	elif islocalrepo "$URL"; then
@@ -1409,15 +1409,17 @@ get_remote_file_list()
 			r_files=""
 		fi
 	else
-		# Git backend: Check safety-check ref first (most reliable if early_safety_check ran)
-		# Or try to fetch master?
-		# If early_safety_check ran, it fetched to refs/gcrypt/safety-check.
-		if git rev-parse --verify "refs/gcrypt/safety-check" >/dev/null 2>&1; then
-			r_files=$(git ls-tree -r --name-only "refs/gcrypt/safety-check") || return 1
+		# Git backend:
+		# We need to fetch the remote state to list its files.
+		# Try fetching master and main to a temporary ref.
+		if git fetch --quiet "$URL" "refs/heads/master:refs/gcrypt/list-files" 2>/dev/null || \
+		   git fetch --quiet "$URL" "refs/heads/main:refs/gcrypt/list-files" 2>/dev/null; then
+			r_files=$(git ls-tree -r --name-only "refs/gcrypt/list-files") || return 1
+			git update-ref -d "refs/gcrypt/list-files"
 		else
-			# Try fetching default branch?
-			# If we can't verify emptiness, we should return error to prevent implicit init.
-			# Using $Gref (refs/gcrypt/gitception...) might be empty if we haven't pushed yet.
+			# Could not fetch, or remote is empty.
+			# If checking, this might be fine, but for clean it's an issue if we expected files.
+			# Returning 1 is safer.
 			return 1
 		fi
 	fi
