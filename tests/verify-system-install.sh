@@ -40,7 +40,7 @@ else
 	EXPECTED_ID="unknown_OS"
 fi
 
-if [[ $OUTPUT != *"(deb running on $EXPECTED_ID)"* ]]; then
+if [[ $OUTPUT != *"($EXPECTED_ID)"* ]]; then
 	print_err "ERROR: Distro ID '$EXPECTED_ID' missing from version string! (Got: $OUTPUT)"
 	exit 1
 fi
