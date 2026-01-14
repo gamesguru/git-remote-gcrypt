@@ -47,10 +47,13 @@ CLEAN_FLAGS_BASH=$(echo "$CLEAN_FLAGS_RAW" | tr '\n' ' ' | sed 's/ $//')
 CLEAN_FLAGS_ZSH=""
 # We'll just provide the flags as a list for _arguments
 # ZSH format roughly: '(-f --force)'{-f,--force}'[desc]'
-# Let's simplify and just pass the flags for now to match the user's "native completion" request without over-engineering the parsing in shell.
-# We will just list them.
+# Only generate if there are actual flags
 COMMA_FLAGS=$(echo "$CLEAN_FLAGS_BASH" | tr ' ' ',')
-CLEAN_FLAGS_ZSH="'(${CLEAN_FLAGS_BASH})' {${COMMA_FLAGS}} '[flag]'"
+if [ -n "$CLEAN_FLAGS_BASH" ]; then
+	CLEAN_FLAGS_ZSH="'(${CLEAN_FLAGS_BASH})' {${COMMA_FLAGS}} '[flag]'"
+else
+	CLEAN_FLAGS_ZSH=""
+fi
 
 # For Fish
 # We need to turn "-f, --force" into:
