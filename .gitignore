@@ -4,8 +4,5 @@
 
 # Test coverage
 .coverage/
-!.coverage/**
 # scratch pad
 .tmp/
-!.tmp/**
-
