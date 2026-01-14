@@ -24,8 +24,8 @@ cd "$SANDBOX" || exit 2
 # Ensure source binary has the placeholder for sed to work on
 # If the local file already has a real version, inject the placeholder
 if ! grep -q "@@DEV_VERSION@@" git-remote-gcrypt; then
-	sed -i.bak 's/^VERSION=.*/VERSION="@@DEV_VERSION@@"/' git-remote-gcrypt 2>/dev/null || \
-	sed 's/^VERSION=.*/VERSION="@@DEV_VERSION@@"/' git-remote-gcrypt > git-remote-gcrypt.tmp && mv git-remote-gcrypt.tmp git-remote-gcrypt
+	sed -i.bak 's/^VERSION=.*/VERSION="@@DEV_VERSION@@"/' git-remote-gcrypt 2>/dev/null \
+		|| sed 's/^VERSION=.*/VERSION="@@DEV_VERSION@@"/' git-remote-gcrypt >git-remote-gcrypt.tmp && mv git-remote-gcrypt.tmp git-remote-gcrypt
 fi
 chmod +x git-remote-gcrypt
 
