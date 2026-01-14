@@ -1414,7 +1414,10 @@ get_remote_file_list()
 		# Try fetching master and main to a temporary ref.
 		if git fetch --quiet "$URL" "refs/heads/master:refs/gcrypt/list-files" 2>/dev/null || \
 		   git fetch --quiet "$URL" "refs/heads/main:refs/gcrypt/list-files" 2>/dev/null; then
-			r_files=$(git ls-tree -r --name-only "refs/gcrypt/list-files") || return 1
+			r_files=$(git ls-tree -r --name-only "refs/gcrypt/list-files") || {
+				git update-ref -d "refs/gcrypt/list-files"
+				return 1
+			}
 			git update-ref -d "refs/gcrypt/list-files"
 		else
 			# Could not fetch, or remote is empty.

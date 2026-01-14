@@ -28,12 +28,14 @@ EOF
 echo "Checking results..."
 if [ -e .tmp/simple_dst/subdir/badfile ]; then
 	echo "FAIL: badfile NOT removed"
+	exit 1
 else
 	echo "SUCCESS: badfile removed"
 fi
 
 if [ ! -e .tmp/simple_dst/subdir/goodfile ]; then
 	echo "FAIL: goodfile was INCORRECTLY removed"
+	exit 1
 else
 	echo "SUCCESS: goodfile preserved"
 fi

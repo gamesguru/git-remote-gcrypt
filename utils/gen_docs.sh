@@ -73,7 +73,7 @@ unset IFS
 
 # 3. Generate README
 echo "Generating $README_OUT..."
-sed "s/{commands_help}/$(echo "$COMMANDS_HELP" | sed 's/[\/&]/\\&/g' | awk '{printf "%s\\n", $0}')/" "$README_TMPL" >"$README_OUT"
+sed "s/{commands_help}/$(echo "$COMMANDS_HELP" | sed 's/[\/&]/\\&/g' | awk 'NR>1{printf "\\n"} {printf "%s", $0}')/" "$README_TMPL" >"$README_OUT"
 
 # 4. Generate Bash
 echo "Generating Bash completions..."

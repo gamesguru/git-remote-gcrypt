@@ -101,7 +101,7 @@ test/:	##H Run tests (purity checks only if kcov missing)
 	@if command -v kcov >/dev/null 2>&1; then \
 		$(MAKE) test/installer test/system test/cov; \
 	else \
-		printf "\033[1;33mkcov not found: skipping coverage/bash tests.\033[0m\n"; \
+		$(call print_warn,kcov not found: skipping coverage/bash tests.); \
 		$(MAKE) test/purity; \
 	fi
 
