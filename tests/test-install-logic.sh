@@ -2,7 +2,12 @@
 set -u
 
 # 1. Setup Sandbox
-SANDBOX=$(mktemp -d)
+# 1. Setup Sandbox in project root to help kcov tracking
+REPO_ROOT=$(pwd)
+mkdir -p .tmp
+SANDBOX=$(mktemp -d -p "$REPO_ROOT/.tmp" sandbox.XXXXXX)
+# Use realpath for the sandbox to avoid any confusion
+SANDBOX=$(realpath "$SANDBOX")
 trap 'rm -rf "$SANDBOX"' EXIT
 
 # Helpers
@@ -12,13 +17,16 @@ print_err() { printf "\033[1;31m[TEST] FAIL: %s\033[0m\n" "$1"; }
 
 print_info "Running install logic tests in $SANDBOX..."
 
-# 2. Copy artifacts
-cp git-remote-gcrypt "$SANDBOX"
-cp README.rst "$SANDBOX" 2>/dev/null || touch "$SANDBOX/README.rst"
-cp completions/templates/README.rst.in "$SANDBOX"
-cp -r completions/ "$SANDBOX"
-cp -r utils/ "$SANDBOX"
-cp install.sh "$SANDBOX"
+# 2. Symlink/Copy artifacts
+# Symlink core logic to help kcov find the source
+ln -s "$REPO_ROOT/install.sh" "$SANDBOX/install.sh"
+ln -s "$REPO_ROOT/git-remote-gcrypt" "$SANDBOX/git-remote-gcrypt"
+ln -s "$REPO_ROOT/utils" "$SANDBOX/utils"
+ln -s "$REPO_ROOT/completions" "$SANDBOX/completions"
+# Copy README as it might be edited/checked
+cp "$REPO_ROOT/README.rst" "$SANDBOX/"
+cp "$REPO_ROOT/completions/templates/README.rst.in" "$SANDBOX/"
+
 cd "$SANDBOX" || exit 2
 
 # Ensure source binary has the placeholder for sed to work on
@@ -126,6 +134,72 @@ else
 	print_err "FAILED: Binary not found in DESTDIR"
 	exit 1
 fi
+
+# --- TEST 5: Permission Failure ---
+echo "--- Test 5: Permission Failure ---"
+RO_DIR="$SANDBOX/ro_dir"
+mkdir -p "$RO_DIR"
+# Make it non-writable
+chmod 555 "$RO_DIR"
+export prefix="$RO_DIR/usr"
+unset DESTDIR
+
+if "bash" "$INSTALLER" >.install_log 2>&1; then
+	print_err "FAILED: Installer should have failed due to permissions"
+	rm -rf "$RO_DIR"
+	exit 1
+else
+	printf "  ✓ %s\n" "Installer failed gracefully on permissions"
+fi
+rm -rf "$RO_DIR"
+
+# --- TEST 6: Missing rst2man ---
+echo "--- Test 6: Missing rst2man ---"
+# Shadow rst2man in PATH
+SHADOW_BIN="$SANDBOX/shadow_bin"
+mkdir -p "$SHADOW_BIN"
+cat >"$SHADOW_BIN/rst2man" <<EOF
+#!/bin/sh
+exit 127
+EOF
+chmod +x "$SHADOW_BIN/rst2man"
+ln -sf "$SHADOW_BIN/rst2man" "$SHADOW_BIN/rst2man.py"
+
+if PATH="$SHADOW_BIN:$PATH" prefix="$SANDBOX/usr" DESTDIR="" bash "$INSTALLER" >.install_log 2>&1; then
+	printf "  ✓ %s\n" "Installer handled missing rst2man"
+else
+	print_err "Installer FAILED unexpectedly with missing rst2man. Output:"
+	cat .install_log
+	exit 1
+fi
+
+# --- TEST 7: OS Detection Fallbacks ---
+echo "--- Test 7: OS Detection Fallbacks ---"
+# 7a: Hit 'uname' path by mocking absence of /etc/os-release via OS_RELEASE_FILE
+if prefix="$SANDBOX/usr" DESTDIR="" OS_RELEASE_FILE="$SANDBOX/nonexistent" bash "$INSTALLER" >.install_log 2>&1; then
+	printf "  ✓ %s\n" "OS Detection: uname path hit"
+else
+	print_err "Installer FAILED in OS fallback (uname) path"
+	exit 1
+fi
+
+# 7b: Hit 'unknown_OS' path by mocking absence of both
+# We need to shadow 'uname' too
+SHADOW_BIN_OS="$SANDBOX/shadow_bin_os"
+mkdir -p "$SHADOW_BIN_OS"
+cat >"$SHADOW_BIN_OS/uname" <<EOF
+#!/bin/sh
+exit 127
+EOF
+chmod +x "$SHADOW_BIN_OS/uname"
+
+if PATH="$SHADOW_BIN_OS:$PATH" prefix="$SANDBOX/usr" DESTDIR="" OS_RELEASE_FILE="$SANDBOX/unknown" bash "$INSTALLER" >.install_log 2>&1; then
+	printf "  ✓ %s\n" "OS Detection: unknown_OS path hit"
+else
+	print_err "Installer FAILED in unknown_OS fallback path"
+	exit 1
+fi
+rm -rf "$SHADOW_BIN_OS" "$SHADOW_BIN"
 
 print_success "All install logic tests passed."
 [ -n "${COV_DIR:-}" ] && print_success "OK. Report: file://${COV_DIR}/index.html"

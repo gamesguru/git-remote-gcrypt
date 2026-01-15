@@ -20,9 +20,10 @@ install_v() {
 }
 
 # --- VERSION DETECTION ---
-if [ -f /etc/os-release ]; then
-	# shellcheck disable=SC1091
-	. /etc/os-release
+: "${OS_RELEASE_FILE:=/etc/os-release}"
+if [ -f "$OS_RELEASE_FILE" ]; then
+	# shellcheck disable=SC1091,SC1090
+	. "$OS_RELEASE_FILE"
 	OS_IDENTIFIER=$ID # Linux
 elif command -v uname >/dev/null; then
 	# Fallback for macOS/BSD (darwin)
