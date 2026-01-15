@@ -135,23 +135,28 @@ else
 	exit 1
 fi
 
-# --- TEST 5: Permission Failure ---
-echo "--- Test 5: Permission Failure ---"
-RO_DIR="$SANDBOX/ro_dir"
-mkdir -p "$RO_DIR"
-# Make it non-writable
-chmod 555 "$RO_DIR"
-export prefix="$RO_DIR/usr"
-unset DESTDIR
+# --- TEST 5: Permission Failure (Simulated) ---
+echo "--- Test 5: Permission Failure (Simulated) ---"
+# We act as root in some containers, so chmod -w won't stop writes.
+# Instead, we mock 'install' to fail, ensuring error paths are hit.
+SHADOW_BIN_FAIL="$SANDBOX/shadow_bin_install_fail"
+mkdir -p "$SHADOW_BIN_FAIL"
+cat >"$SHADOW_BIN_FAIL/install" <<EOF
+#!/bin/sh
+echo "Mock failure" >&2
+exit 1
+EOF
+chmod +x "$SHADOW_BIN_FAIL/install"
 
-if "bash" "$INSTALLER" >.install_log 2>&1; then
-	print_err "FAILED: Installer should have failed due to permissions"
-	rm -rf "$RO_DIR"
+if PATH="$SHADOW_BIN_FAIL:$PATH" prefix="$SANDBOX/usr" DESTDIR="" bash "$INSTALLER" >.install_log 2>&1; then
+	print_err "FAILED: Installer should have failed due to install command failure"
+	cat .install_log
+	rm -rf "$SHADOW_BIN_FAIL"
 	exit 1
 else
-	printf "  ✓ %s\n" "Installer failed gracefully on permissions"
+	printf "  ✓ %s\n" "Installer failed gracefully on install error"
 fi
-rm -rf "$RO_DIR"
+rm -rf "$SHADOW_BIN_FAIL"
 
 # --- TEST 6: Missing rst2man ---
 echo "--- Test 6: Missing rst2man ---"
