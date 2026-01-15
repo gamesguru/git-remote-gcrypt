@@ -4,12 +4,19 @@ set -e
 : "${prefix:=/usr/local}"
 : "${DESTDIR:=}"
 
+log() { printf "\033[1;36m[INSTALL] %s\033[0m\n" "$1"; }
 verbose() { echo "$@" >&2 && "$@"; }
 
 install_v() {
 	# Install $1 into $2/ with mode $3
-	verbose install -d "$2" \
-		&& verbose install -m "$3" "$1" "$2"
+	if ! verbose install -d "$2"; then
+		echo "Error: Failed to create directory $2" >&2
+		exit 1
+	fi
+	if ! verbose install -m "$3" "$1" "$2"; then
+		echo "Error: Failed to install $1 into $2" >&2
+		exit 1
+	fi
 }
 
 # --- VERSION DETECTION ---

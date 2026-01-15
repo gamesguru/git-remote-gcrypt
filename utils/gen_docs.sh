@@ -29,7 +29,7 @@ RAW_HELP=$(sed -n "/^$SCRIPT_KEY=\"/,/\"$/p" "$SRC" | sed "s/^$SCRIPT_KEY=\"//;s
 
 # 1. Prepare {commands_help} for README (Indented for RST)
 # We want the Options and Git Protocol Commands sections
-COMMANDS_HELP=$(echo "$RAW_HELP" | sed -n '/^Options:/,$p' | sed 's/^/    /')
+COMMANDS_HELP=$(echo "$RAW_HELP" | sed -n '/^Options:/,$p' | sed 's/^/    /' | sed '$d')
 
 # 2. Parse Commands and Flags for Completions
 # Extract command names (first word after 2 spaces)
@@ -71,34 +71,38 @@ for line in $CLEAN_FLAGS_RAW; do
 done
 unset IFS
 
+# Helper for template substitution using awk
+# Usage: replace_template "TEMPLATE_FILE" "OUT_FILE" "KEY1=VALUE1" "KEY2=VALUE2" ...
+replace_template() {
+	_tmpl="$1"
+	_out="$2"
+	shift 2
+	_awk_script=""
+	for _kv in "$@"; do
+		_key="${_kv%%=*}"
+		_val="${_kv#*=}"
+		# Export the value so awk can access it via ENVIRON
+		export "REPLACE_$_key"="$_val"
+		_awk_script="${_awk_script} gsub(/\{${_key}\}/, ENVIRON[\"REPLACE_$_key\"]);"
+	done
+	awk "{ $_awk_script print }" "$_tmpl" >"$_out"
+}
+
 # 3. Generate README
 echo "Generating $README_OUT..."
-sed "s/{commands_help}/$(echo "$COMMANDS_HELP" | sed 's/[\/&]/\\&/g' | awk 'NR>1{printf "\\n"} {printf "%s", $0}')/" "$README_TMPL" >"$README_OUT"
+replace_template "$README_TMPL" "$README_OUT" "commands_help=$COMMANDS_HELP"
 
 # 4. Generate Bash
 echo "Generating Bash completions..."
-sed "s/{commands}/$COMMANDS_LIST/; s/{clean_flags_bash}/$CLEAN_FLAGS_BASH/" "$BASH_TMPL" >"$BASH_OUT"
+replace_template "$BASH_TMPL" "$BASH_OUT" "commands=$COMMANDS_LIST" "clean_flags_bash=$CLEAN_FLAGS_BASH"
 
 # 5. Generate Zsh
 echo "Generating Zsh completions..."
-# Zsh substitution is tricky with the complex string.
-# We'll stick to replacing {commands} and {clean_flags_zsh}
-# Need to escape special chars for sed
-# safe_cmds removed as unused
-# For clean_flags_zsh, since it contains quotes and braces, we need care.
-# We'll read the template line by line? No, sed is standard.
-# We use a temp file for the replacement string to avoid sed escaping hell for large blocks?
-# Or just keep it simple.
-sed "s/{commands}/$COMMANDS_LIST/" "$ZSH_TMPL" \
-	| sed "s|{clean_flags_zsh}|$CLEAN_FLAGS_ZSH|" >"$ZSH_OUT"
+replace_template "$ZSH_TMPL" "$ZSH_OUT" "commands=$COMMANDS_LIST" "clean_flags_zsh=$CLEAN_FLAGS_ZSH"
 
 # 6. Generate Fish
 echo "Generating Fish completions..."
 # Fish needs {not_sc_list} which matches {commands} (space separated)
-sed "s/{not_sc_list}/$COMMANDS_LIST/g" "$FISH_TMPL" \
-	|
-	# Multi-line replacement in sed is hard. Use awk?
-	# Or just injecting the string with escaped newlines.
-	sed "s|{clean_flags_fish}|$CLEAN_FLAGS_FISH|" >"$FISH_OUT"
+replace_template "$FISH_TMPL" "$FISH_OUT" "not_sc_list=$COMMANDS_LIST" "clean_flags_fish=$CLEAN_FLAGS_FISH"
 
 echo "Done."

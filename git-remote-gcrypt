@@ -1419,10 +1419,10 @@ get_remote_file_list()
 				return 1
 			}
 			git update-ref -d "refs/gcrypt/list-files"
-		else
 			# Could not fetch, or remote is empty.
 			# If checking, this might be fine, but for clean it's an issue if we expected files.
 			# Returning 1 is safer.
+			git update-ref -d "refs/gcrypt/list-files" 2>/dev/null || true
 			return 1
 		fi
 	fi

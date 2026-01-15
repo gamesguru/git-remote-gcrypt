@@ -21,13 +21,13 @@ _git_remote_gcrypt() {
 	# 2. Handle subcommands
 	case "${COMP_WORDS[1]}" in
 		clean)
-			local remotes=$(git remote -v 2>/dev/null | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
-			COMPREPLY=($(compgen -W " $remotes" -- "$cur"))
+			local remotes=$( git remote -v 2>/dev/null | grep 'gcrypt::' | awk '{print $1}' | sort -u || : )
+			COMPREPLY=( $( compgen -W " $remotes" -- "$cur" ) )
 			return 0
 			;;
 		check)
-			local remotes=$(git remote 2>/dev/null || :)
-			COMPREPLY=($(compgen -W "$remotes" -- "$cur"))
+			local remotes=$( git remote 2>/dev/null || : )
+			COMPREPLY=( $( compgen -W "$remotes" -- "$cur" ) )
 			return 0
 			;;
 		capabilities|fetch|list|push)

@@ -72,8 +72,6 @@ Command Reference
     Environment Variables:
       GCRYPT_DEBUG=1        Enable verbose debug logging to stderr
       GCRYPT_TRACE=1        Enable shell tracing (set -x) for rsync/curl commands
-      GCRYPT_FULL_REPACK=1  Force full repack when pushing
-
 
 Configuration
 =============
@@ -289,7 +287,7 @@ To detect if a git url is a gcrypt repo, use::
 
 (Legacy syntax ``--check`` is also supported).
 
-Exit status is 0
+Exit status is 0 if the repository exists and uses gcrypt, 1 if it
 uses gcrypt but could not be decrypted, and 100 if the repo is not
 encrypted with gcrypt (or could not be accessed).
 

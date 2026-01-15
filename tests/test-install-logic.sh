@@ -37,11 +37,13 @@ assert_version() {
 	export prefix="$PREFIX"
 	unset DESTDIR
 
-	# Run the installer
-	"bash" "$INSTALLER" >/dev/null 2>&1 || {
-		echo "Installer failed unexpectedly"
-		return 1
+	# Run the installer and capture output
+	cat </dev/null | "bash" "$INSTALLER" >.install_log 2>&1 || {
+		print_err "Installer failed unexpectedly. Output:"
+		cat .install_log
+		exit 1
 	}
+	rm -f .install_log
 
 	INSTALLED_BIN="$PREFIX/bin/git-remote-gcrypt"
 	chmod +x "$INSTALLED_BIN"
@@ -89,11 +91,29 @@ EXPECTED_TAG="5.5.5-1 ($OS_IDENTIFIER)"
 
 assert_version "$EXPECTED_TAG"
 
-# --- TEST 3: DESTDIR Support ---
-echo "--- Test 3: DESTDIR Support ---"
+# --- TEST 3: Prefix Support (Mac-idiomatic) ---
+echo "--- Test 3: Prefix Support ---"
 rm -rf "${SANDBOX:?}/usr"
-export DESTDIR="$SANDBOX/pkg_root"
+export prefix="$SANDBOX/usr"
+unset DESTDIR
+
+"bash" "$INSTALLER" >/dev/null 2>&1 || {
+	print_err "Installer FAILED"
+	exit 1
+}
+
+if [ -f "$SANDBOX/usr/bin/git-remote-gcrypt" ]; then
+	printf "  ✓ %s\n" "Prefix honored"
+else
+	print_err "FAILED: Binary not found in expected prefix location"
+	exit 1
+fi
+
+# --- TEST 4: DESTDIR Support (Linux-idiomatic) ---
+echo "--- Test 4: DESTDIR Support ---"
+rm -rf "${SANDBOX:?}/pkg_root"
 export prefix="/usr"
+export DESTDIR="$SANDBOX/pkg_root"
 
 "bash" "$INSTALLER" >/dev/null 2>&1 || {
 	print_err "Installer FAILED"

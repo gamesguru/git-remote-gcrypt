@@ -133,7 +133,7 @@ test/system:	##H Run logic tests (with bash & coverage)
 	@rm -rf $(COV_SYSTEM)
 	@mkdir -p $(COV_SYSTEM)
 	@export GPG_TTY=$$(tty); \
-	 [ -n "$(DEBUG)$(V)" ] && export GCRYPT_DEBUG=1 && printf "\033[1;33mDebug mode enabled\033[0m\n"; \
+	 [ -n "$(DEBUG)$(V)" ] && export GCRYPT_DEBUG=1 && $(call print_warn,Debug mode enabled); \
 	 export GIT_CONFIG_PARAMETERS="'gcrypt.gpg-args=--pinentry-mode loopback --no-tty'"; \
 	 sed -i 's|^#!/bin/sh|#!/bin/bash|' git-remote-gcrypt; \
 	 trap "sed -i 's|^#!/bin/bash|#!/bin/sh|' git-remote-gcrypt" EXIT; \
