@@ -27,7 +27,9 @@ total_lines = 0
 missed_lines = 0
 
 for c in tree.findall(".//class"):
-    if patt in c.get("filename", ""):
+    filename = c.get("filename", "")
+    # Use exact filename match, not substring (avoid "uninstall.sh" matching "install.sh")
+    if filename == patt or filename.endswith("/" + patt):
         for line in c.findall(".//line"):
             total_lines += 1
             if line.get("hits") == "0":

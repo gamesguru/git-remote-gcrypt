@@ -17,9 +17,9 @@ print_err() { printf "\033[1;31m[TEST] FAIL: %s\033[0m\n" "$1"; }
 
 print_info "Running install logic tests in $SANDBOX..."
 
-# 2. Symlink/Copy artifacts
-# Symlink core logic to help kcov find the source
-ln -s "$REPO_ROOT/install.sh" "$SANDBOX/install.sh"
+# 2. Copy/Symlink artifacts
+# Copy install.sh so kcov can track it correctly (symlinks confuse kcov)
+cp "$REPO_ROOT/install.sh" "$SANDBOX/install.sh"
 ln -s "$REPO_ROOT/git-remote-gcrypt" "$SANDBOX/git-remote-gcrypt"
 ln -s "$REPO_ROOT/utils" "$SANDBOX/utils"
 ln -s "$REPO_ROOT/completions" "$SANDBOX/completions"
@@ -141,11 +141,9 @@ echo "--- Test 5: Permission Failure (Simulated) ---"
 # Instead, we mock 'install' to fail, ensuring error paths are hit.
 SHADOW_BIN_FAIL="$SANDBOX/shadow_bin_install_fail"
 mkdir -p "$SHADOW_BIN_FAIL"
-cat >"$SHADOW_BIN_FAIL/install" <<EOF
-#!/bin/sh
-echo "Mock failure" >&2
-exit 1
-EOF
+echo '#!/bin/sh' >"$SHADOW_BIN_FAIL/install"
+echo 'echo "Mock failure" >&2' >>"$SHADOW_BIN_FAIL/install"
+echo 'exit 1' >>"$SHADOW_BIN_FAIL/install"
 chmod +x "$SHADOW_BIN_FAIL/install"
 
 if PATH="$SHADOW_BIN_FAIL:$PATH" prefix="$SANDBOX/usr" DESTDIR="" bash "$INSTALLER" >.install_log 2>&1; then
@@ -163,10 +161,8 @@ echo "--- Test 6: Missing rst2man ---"
 # Shadow rst2man in PATH
 SHADOW_BIN="$SANDBOX/shadow_bin"
 mkdir -p "$SHADOW_BIN"
-cat >"$SHADOW_BIN/rst2man" <<EOF
-#!/bin/sh
-exit 127
-EOF
+echo '#!/bin/sh' >"$SHADOW_BIN/rst2man"
+echo 'exit 127' >>"$SHADOW_BIN/rst2man"
 chmod +x "$SHADOW_BIN/rst2man"
 ln -sf "$SHADOW_BIN/rst2man" "$SHADOW_BIN/rst2man.py"
 
@@ -192,10 +188,8 @@ fi
 # We need to shadow 'uname' too
 SHADOW_BIN_OS="$SANDBOX/shadow_bin_os"
 mkdir -p "$SHADOW_BIN_OS"
-cat >"$SHADOW_BIN_OS/uname" <<EOF
-#!/bin/sh
-exit 127
-EOF
+echo '#!/bin/sh' >"$SHADOW_BIN_OS/uname"
+echo 'exit 127' >>"$SHADOW_BIN_OS/uname"
 chmod +x "$SHADOW_BIN_OS/uname"
 
 if PATH="$SHADOW_BIN_OS:$PATH" prefix="$SANDBOX/usr" DESTDIR="" OS_RELEASE_FILE="$SANDBOX/unknown" bash "$INSTALLER" >.install_log 2>&1; then

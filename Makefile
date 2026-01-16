@@ -110,11 +110,14 @@ test/installer:	##H Test installer logic
 	@rm -rf $(COV_INSTALL)
 	@mkdir -p $(COV_INSTALL)
 	@export COV_DIR=$(COV_INSTALL); \
-	 kcov --bash-handle-sh-invocation \
+	 kcov --bash-dont-parse-binary-dir \
 	     --include-pattern=install.sh \
 	     --exclude-path=$(PWD)/.git,$(PWD)/tests \
 	     $(COV_INSTALL) \
-	     ./tests/test-install-logic.sh
+	     ./tests/test-install-logic.sh 2>&1 | tee .tmp/kcov.log; \
+	 if grep -q 'kcov: error:' .tmp/kcov.log; then \
+	     echo "FAIL: kcov errors detected (see above)"; exit 1; \
+	 fi
 
 
 .PHONY: test/purity
@@ -170,7 +173,7 @@ test/cov:	##H Show coverage gaps
 _test_cov_internal:
 	@err=0; \
 	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt,56) || err=1; \
-	$(call CHECK_COVERAGE,$(COV_INSTALL),install.sh,78) || err=1; \
+	$(call CHECK_COVERAGE,$(COV_INSTALL),install.sh,84) || err=1; \
 	exit $$err
 
 
