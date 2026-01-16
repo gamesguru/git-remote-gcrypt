@@ -225,8 +225,8 @@ unset DESTDIR
 # We copy the installer (breaking symlink) and patch it to check a nonexistent path instead of /usr/local
 
 rm -f "$INSTALLER"
-cp "$REPO_ROOT/install.sh" "$INSTALLER"
-sed -i 's|/usr/local|/non/existent/path|g' "$INSTALLER"
+sed 's|/usr/local|/non/existent/path|g' "$REPO_ROOT/install.sh" > "$INSTALLER"
+chmod +x "$INSTALLER"
 
 # Run with PREFIX set but explicit prefix unset
 if PREFIX="$TERMUX_PREFIX" bash "$INSTALLER" >.install_log 2>&1; then
