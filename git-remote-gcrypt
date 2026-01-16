@@ -603,6 +603,9 @@ PRIVDECRYPT()
 	(xfeed "$status_" grep -e "$1" >/dev/null || {
 		echo_info "Failed to verify manifest signature!" &&
 		echo_info "Only accepting signatories: ${2:-(none)}" &&
+		echo_info "To accept any signature from your keyring, try:" &&
+		echo_info "  git config --unset gcrypt.participants" &&
+		echo_info "  # or: git config gcrypt.participants simple" &&
 		return 1
 	})
 

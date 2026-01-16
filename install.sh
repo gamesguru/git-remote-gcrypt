@@ -1,7 +1,18 @@
 #!/bin/sh
 set -e
 
-: "${prefix:=/usr/local}"
+# Auto-detect Termux: if /usr/local doesn't exist but $PREFIX does (Android/Termux)
+if [ -z "${prefix:-}" ]; then
+	if [ -d /usr/local ]; then
+		prefix=/usr/local
+	elif [ -n "${PREFIX:-}" ] && [ -d "$PREFIX" ]; then
+		# Termux sets $PREFIX to /data/data/com.termux/files/usr
+		prefix="$PREFIX"
+		echo "Detected Termux environment, using prefix=$prefix"
+	else
+		prefix=/usr/local
+	fi
+fi
 : "${DESTDIR:=}"
 
 log() { printf "\033[1;36m[INSTALL] %s\033[0m\n" "$1"; }

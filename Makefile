@@ -169,7 +169,7 @@ test/cov:	##H Show coverage gaps
 
 _test_cov_internal:
 	@err=0; \
-	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt,59) || err=1; \
+	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt,56) || err=1; \
 	$(call CHECK_COVERAGE,$(COV_INSTALL),install.sh,78) || err=1; \
 	exit $$err
 

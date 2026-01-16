@@ -206,6 +206,68 @@ else
 fi
 rm -rf "$SHADOW_BIN_OS" "$SHADOW_BIN"
 
+# --- TEST 8: Termux PREFIX Auto-Detection ---
+echo "--- Test 8: Termux PREFIX Auto-Detection ---"
+# 8a: When /usr/local doesn't exist but PREFIX is set, use PREFIX
+TERMUX_PREFIX="$SANDBOX/termux_prefix"
+mkdir -p "$TERMUX_PREFIX/bin"
+mkdir -p "$TERMUX_PREFIX/share/bash-completion/completions"
+mkdir -p "$TERMUX_PREFIX/share/zsh/site-functions"
+mkdir -p "$TERMUX_PREFIX/share/fish/vendor_completions.d"
+mkdir -p "$TERMUX_PREFIX/share/man/man1"
+
+# Unset prefix so auto-detection kicks in
+unset prefix
+unset DESTDIR
+
+# Mock /usr/local as nonexistent by using a wrapper that interprets [ -d /usr/local ]
+# Since we can't truly hide /usr/local, we modify the installer call to point elsewhere
+# We copy the installer (breaking symlink) and patch it to check a nonexistent path instead of /usr/local
+
+rm -f "$INSTALLER"
+cp "$REPO_ROOT/install.sh" "$INSTALLER"
+sed -i 's|/usr/local|/non/existent/path|g' "$INSTALLER"
+
+# Run with PREFIX set but explicit prefix unset
+if PREFIX="$TERMUX_PREFIX" bash "$INSTALLER" >.install_log 2>&1; then
+	if [ -f "$TERMUX_PREFIX/bin/git-remote-gcrypt" ]; then
+		printf "  ✓ %s\n" "Termux PREFIX auto-detection works"
+	else
+		# On systems with /usr/local the default is still used
+		if grep -q "Detected Termux" .install_log; then
+			print_err "FAILED: Termux detected but binary not in PREFIX"
+			cat .install_log
+			exit 1
+		else
+			printf "  ✓ %s\n" "Non-Termux: default prefix used (expected on Linux)"
+		fi
+	fi
+else
+	print_err "Installer FAILED in Termux PREFIX test"
+	cat .install_log
+	exit 1
+fi
+
+# 8b: When prefix is explicitly set, it should override PREFIX
+echo "--- Test 8b: Explicit prefix overrides PREFIX ---"
+rm -rf "$SANDBOX/explicit_prefix"
+mkdir -p "$SANDBOX/explicit_prefix"
+
+if PREFIX="$TERMUX_PREFIX" prefix="$SANDBOX/explicit_prefix" DESTDIR="" bash "$INSTALLER" >.install_log 2>&1; then
+	if [ -f "$SANDBOX/explicit_prefix/bin/git-remote-gcrypt" ]; then
+		printf "  ✓ %s\n" "Explicit prefix overrides PREFIX"
+	else
+		print_err "FAILED: Explicit prefix not honored"
+		cat .install_log
+		exit 1
+	fi
+else
+	print_err "Installer FAILED in explicit prefix test"
+	cat .install_log
+	exit 1
+fi
+rm -rf "$TERMUX_PREFIX" "$SANDBOX/explicit_prefix"
+
 print_success "All install logic tests passed."
 [ -n "${COV_DIR:-}" ] && print_success "OK. Report: file://${COV_DIR}/index.html"
 
