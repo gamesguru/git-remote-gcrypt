@@ -50,7 +50,8 @@ CLEAN_FLAGS_ZSH=""
 # Only generate if there are actual flags
 COMMA_FLAGS=$(echo "$CLEAN_FLAGS_BASH" | tr ' ' ',')
 if [ -n "$CLEAN_FLAGS_BASH" ]; then
-	CLEAN_FLAGS_ZSH="'(${CLEAN_FLAGS_BASH})' {${COMMA_FLAGS}} '[flag]'"
+	# zsh _arguments requires format: '(exclusion)'{-f,--long}'[desc]' as ONE string (no spaces)
+	CLEAN_FLAGS_ZSH="'(${CLEAN_FLAGS_BASH})'{${COMMA_FLAGS}}'[flag]'"
 else
 	CLEAN_FLAGS_ZSH=""
 fi

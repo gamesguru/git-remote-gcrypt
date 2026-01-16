@@ -15,7 +15,6 @@ if [ -z "${prefix:-}" ]; then
 fi
 : "${DESTDIR:=}"
 
-log() { printf "\033[1;36m[INSTALL] %s\033[0m\n" "$1"; }
 verbose() { echo "$@" >&2 && "$@"; }
 
 install_v() {
