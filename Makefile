@@ -178,11 +178,8 @@ CHECK_COVERAGE = $(if $(call find_coverage_xml,$(1)), \
 	exit 1)
 
 
-.PHONY: test/cov _test_cov_internal
+.PHONY: test/cov
 test/cov:	##H Show coverage gaps
-	$(MAKE) _test_cov_internal
-
-_test_cov_internal:
 	@err=0; \
 	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt,56) || err=1; \
 	$(call CHECK_COVERAGE,$(COV_INSTALL),install.sh,84) || err=1; \

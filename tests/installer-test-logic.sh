@@ -19,7 +19,7 @@ print_info "Running install logic tests in $SANDBOX..."
 
 # 2. Copy/Symlink artifacts
 # Copy install.sh so kcov can track it correctly (symlinks confuse kcov)
-cp "$REPO_ROOT/install.sh" "$SANDBOX/install.sh"
+ln -s "$REPO_ROOT/install.sh" "$SANDBOX/install.sh"
 ln -s "$REPO_ROOT/git-remote-gcrypt" "$SANDBOX/git-remote-gcrypt"
 ln -s "$REPO_ROOT/utils" "$SANDBOX/utils"
 ln -s "$REPO_ROOT/completions" "$SANDBOX/completions"
@@ -71,7 +71,7 @@ assert_version() {
 # --- TEST 1: Strict Metadata Requirement ---
 echo "--- Test 1: Fail without Metadata ---"
 rm -rf debian redhat
-if "bash" "$INSTALLER" >/dev/null 2>&1; then
+if bash "$INSTALLER" >/dev/null 2>&1; then
 	print_err "FAILED: Installer should have exited 1 without debian/changelog"
 	exit 1
 else
@@ -105,7 +105,7 @@ rm -rf "${SANDBOX:?}/usr"
 export prefix="$SANDBOX/usr"
 unset DESTDIR
 
-"bash" "$INSTALLER" >/dev/null 2>&1 || {
+bash "$INSTALLER" >/dev/null 2>&1 || {
 	print_err "Installer FAILED"
 	exit 1
 }
@@ -123,7 +123,7 @@ rm -rf "${SANDBOX:?}/pkg_root"
 export prefix="/usr"
 export DESTDIR="$SANDBOX/pkg_root"
 
-"bash" "$INSTALLER" >/dev/null 2>&1 || {
+bash "$INSTALLER" >/dev/null 2>&1 || {
 	print_err "Installer FAILED"
 	exit 1
 }
