@@ -82,7 +82,7 @@ readonly tempdir
 trap 'rm -Rf -- "${tempdir}"' EXIT
 
 # Setup PATH to use local git-remote-gcrypt
-PATH=$(git rev-parse --show-toplevel):${PATH}
+PATH=${PWD}:${PATH}
 readonly PATH
 export PATH
 
