@@ -109,7 +109,7 @@ CLEAN_FLAGS_FISH=$(echo "$CLEAN_FLAGS_RAW" | while read -r line; do
 
 	# Description is looked up separately via grep because it contains spaces
 	# escape single quotes for Fish string
-	desc=$(echo "$RAW_HELP" | grep -F -- "$line" | sed 's/^[[:space:]]*//' | cut -d ' ' -f 3- | sed "s/'/\\\\'/g")
+	desc=$(echo "$RAW_HELP" | grep -F -- "$line" | head -n 1 | sed 's/^[[:space:]]*//' | cut -d ' ' -f 3- | sed "s/'/\\\\'/g")
 
 	if [[ $f1 == -* ]] && [[ $f2 == --* ]]; then
 		short="${f1#-}"
