@@ -13,6 +13,8 @@ complete -c git-remote-gcrypt -n "__fish_seen_subcommand_from check" -a "(git re
 complete -c git-remote-gcrypt -n "__fish_seen_subcommand_from stat" -a "(git remote 2>/dev/null)" -d 'Git Remote'
 
 # Clean flags
-complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean" -l force -d 'Flag'
-complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean" -l init -d 'Flag'
-complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean" -l hard -d 'Flag'
+complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean" -l force -d '       Actually delete files (default is scan only)
+        Allow cleaning uninitialized repos (requires --force)
+        Override safety checks (requires --force)'
+complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean" -l init -d '        Allow cleaning uninitialized repos (requires --force)'
+complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean" -l hard -d '        Override safety checks (requires --force)'

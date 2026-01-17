@@ -63,7 +63,7 @@ check/deps:	##H Verify kcov & shellcheck
 
 LINT_LOCS_PY ?= $(shell git ls-files '*.py')
 LINT_LOCS_SH ?= $(shell git ls-files '*.sh' ':!tests/system-test.sh')
-FORMAT_LOCS_SHELL ?= completions/*.sh completions/**/*
+FORMAT_LOCS_SHELL ?= completions/*.sh completions/bash/* completions/zsh/* completions/fish/* completions/templates/bash.in completions/templates/zsh.in completions/templates/fish.in
 
 .PHONY: format
 format:	##H Format scripts

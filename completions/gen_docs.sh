@@ -85,12 +85,11 @@ CLEAN_FLAGS_ZSH=$(echo "$CLEAN_FLAGS_RAW" | while read -r line; do
 	desc="[Flag]"
 
 	# Use printf to avoid newline issues in variable
-	# Note: Zsh format is 'exclusion:long:desc' or 'exclusion'flag'desc'
-	# '(-f --force)'{-f,--force}'[Actually delete files]'
+	# Zsh format: '(-f --force)'{-f,--force}'[Actually delete files]'
 	if [ -n "$excl" ]; then
-		printf " '%s'%s'%s'" "$excl" "$fspec" "$desc"
+		printf "'%s'%s'%s'" "$excl" "$fspec" "$desc"
 	else
-		printf " %s'%s'" "$fspec" "$desc"
+		printf "%s'%s'" "$fspec" "$desc"
 	fi
 done | tr '\n' ' ')
 
@@ -105,34 +104,30 @@ CLEAN_FLAGS_FISH=$(echo "$CLEAN_FLAGS_RAW" | while read -r line; do
 
 	# Split by space
 	# Case 1: "-f --force" -> field1=-f, field2=--force
-	# Case 2: "--hard" -> field1=--hard
 	f1=$(echo "$line" | awk '{print $1}')
 	f2=$(echo "$line" | awk '{print $2}')
 
-	if echo "$f1" | grep -q "^--"; then
-		# Starts with --, so it's a long flag.
-		long=${f1#--}
-		# f2 is likely empty or next flag (but we assume cleaned format)
-		if [ -n "$f2" ]; then
-			# Should be descriptor or unexpected? Our parser above extracts only flags.
-			# But our parser above might extract "-f --force" as "$2 $3".
-			# If $2 is -f and $3 is --force.
-			# Just in case, let's treat f2 as potentially another flag if we didn't handle it?
-			# Actually, the parser at top produces "flag1 flag2".
-			:
-		fi
+	# Description is looked up separately via grep because it contains spaces
+	# escape single quotes for Fish string
+	desc=$(echo "$RAW_HELP" | grep -F -- "$line" | sed 's/^[[:space:]]*//' | cut -d ' ' -f 3- | sed "s/'/\\\\'/g")
+
+	if [[ "$f1" == -* ]] && [[ "$f2" == --* ]]; then
+		short="${f1#-}"
+		long="${f2#--}"
+	elif [[ "$f1" == --* ]]; then
+		long="${f1#--}"
 	else
 		# Starts with - (short)
-		short=${f1#-}
+		short="${f1#-}"
 		if [ -n "$f2" ] && echo "$f2" | grep -q "^--"; then
-			long=${f2#--}
+			long="${f2#--}"
 		fi
 	fi
 
 	cmd='complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean"'
 	[ -n "$short" ] && cmd="$cmd -s $short"
 	[ -n "$long" ] && cmd="$cmd -l $long"
-	cmd="$cmd -d 'Flag';"
+	cmd="$cmd -d '$desc'"
 
 	printf "%s\n" "$cmd"
 done)

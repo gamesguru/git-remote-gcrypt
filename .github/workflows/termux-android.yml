@@ -13,6 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fix permissions for Docker
+        run: chmod -R 777 .
+
       - name: Run tests in Termux
         run: |
           docker run --rm \
