@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 # gen_docs.sh
@@ -111,10 +111,10 @@ CLEAN_FLAGS_FISH=$(echo "$CLEAN_FLAGS_RAW" | while read -r line; do
 	# escape single quotes for Fish string
 	desc=$(echo "$RAW_HELP" | grep -F -- "$line" | sed 's/^[[:space:]]*//' | cut -d ' ' -f 3- | sed "s/'/\\\\'/g")
 
-	if [[ "$f1" == -* ]] && [[ "$f2" == --* ]]; then
+	if [[ $f1 == -* ]] && [[ $f2 == --* ]]; then
 		short="${f1#-}"
 		long="${f2#--}"
-	elif [[ "$f1" == --* ]]; then
+	elif [[ $f1 == --* ]]; then
 		long="${f1#--}"
 	else
 		# Starts with - (short)
