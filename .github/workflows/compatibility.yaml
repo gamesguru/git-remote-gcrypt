@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies (container is root)
         run: |
           apt-get update
-          apt-get install -y curl gnupg git python3-docutils
+          apt-get install -y curl gnupg make git python3-docutils
 
       - name: Tool versions (check)
         run: |
