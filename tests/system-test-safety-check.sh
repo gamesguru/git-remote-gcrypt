@@ -26,6 +26,10 @@ GIT="git -c advice.defaultBranchName=false"
 tempdir=$(mktemp -d)
 trap 'rm -rf "$tempdir"' EXIT
 
+# Isolate git config to prevent leaks from other tests
+export GIT_CONFIG_GLOBAL="${tempdir}/gitconfig"
+export GIT_CONFIG_SYSTEM="/dev/null"
+
 print_info "Setting up test environment..."
 
 # Create a bare repo (simulates remote)
