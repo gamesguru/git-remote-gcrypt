@@ -60,8 +60,9 @@ Command Reference
       version          Show version information
       check [URL]      Check if URL is a gcrypt repository
       clean [URL|REMOTE] Scan/Clean unencrypted files from remote
-        clean -f, --force    Actually delete files (default is scan only)
-        clean -i, --init     Scan even if no manifest found (DANGEROUS with --force)
+        clean --force        Actually delete files (default is scan only)
+        clean --init         Allow cleaning valid files (requires --force)
+        clean --hard         Override safety checks (requires --force)
       stat [URL|REMOTE] Show diagnostics (file counts, tracked vs untracked)
     Git Protocol Commands (for debugging):
       capabilities     List remote helper capabilities

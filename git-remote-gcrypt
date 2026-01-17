@@ -46,8 +46,9 @@ Options:
   version          Show version information
   check [URL]      Check if URL is a gcrypt repository
   clean [URL|REMOTE] Scan/Clean unencrypted files from remote
-    clean -f, --force    Actually delete files (default is scan only)
-    clean -i, --init     Scan even if no manifest found (DANGEROUS with --force)
+    clean --force        Actually delete files (default is scan only)
+    clean --init         Allow cleaning valid files (requires --force)
+    clean --hard         Override safety checks (requires --force)
   stat [URL|REMOTE] Show diagnostics (file counts, tracked vs untracked)
 Git Protocol Commands (for debugging):
   capabilities     List remote helper capabilities
@@ -86,8 +87,9 @@ while [ $# -gt 0 ]; do
 			shift
 			while [ $# -gt 0 ]; do
 				case "$1" in
-					--force|-f) FORCE_CLEAN=yes ;;
-					--init|-i) FORCE_INIT=yes ;;
+					--force) FORCE_CLEAN=yes ;;
+					--hard) HARD_FORCE=yes ;;
+					--init) FORCE_INIT=yes ;;
 					-*) echo "Unknown option: $1" >&2; exit 1 ;;
 					*)
 						if [ -z "$URL" ]; then
@@ -100,6 +102,15 @@ while [ $# -gt 0 ]; do
 				esac
 				shift
 			done
+			if [ -n "$HARD_FORCE" ] && [ -z "$FORCE_CLEAN" ]; then
+				echo "Error: --hard requires --force" >&2
+				exit 1
+			fi
+			if [ "${FORCE_INIT:-}" = "yes" ] && [ -z "$FORCE_CLEAN" ]; then
+				echo "Error: --init requires --force" >&2
+				echo "(To scan a repository, use 'clean' without arguments)" >&2
+				exit 1
+			fi
 			break # Stop parsing outer loop
 			;;
 		stat)
@@ -415,7 +426,24 @@ gitception_remove()
 	(
 		export GIT_INDEX_FILE="$temp_index"
 		git read-tree "$Gref"
-		git rm --cached --ignore-unmatch -q "$2"
+		if [ -n "$HARD_FORCE" ]; then
+			git rm --cached --ignore-unmatch -q -f "$2"
+		else
+			if ! git rm --cached --ignore-unmatch -q "$2"; then
+				echo_info "Error: Failed to remove '$2' because it has local modifications."
+				echo_info "Manual removal command: git rm --cached -f '$2'"
+				
+				suggest_args="--force --hard"
+				# If we are in init mode (FORCE_INIT set), the user MUST pass --init again
+				if [ "${FORCE_INIT:-}" = "yes" ]; then
+					suggest_args="--init $suggest_args"
+				fi
+				
+				echo_info "To force remove via tool, run:"
+				echo_info "  git-remote-gcrypt clean $suggest_args $URL"
+				exit 1
+			fi
+		fi
 		tree_id=$(git write-tree)
 		if [ "$tree_id" != "$(git rev-parse "$Gref^{tree}")" ]; then
 			commit_id=$(anon_commit "$tree_id") &&
