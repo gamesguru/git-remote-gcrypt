@@ -1,12 +1,6 @@
 #!/bin/bash
 set -e
 
-# Skip if rsync not found (don't fail CI)
-if ! command -v rsync &>/dev/null; then
-	echo "rsync not found, skipping test."
-	exit 0
-fi
-
 mkdir -p .tmp/simple_src .tmp/simple_dst/subdir
 touch .tmp/simple_dst/subdir/badfile
 touch .tmp/simple_dst/subdir/goodfile

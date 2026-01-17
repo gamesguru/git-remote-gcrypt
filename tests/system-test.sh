@@ -420,6 +420,7 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
     mkdir "${tempdir}/fresh_clone_test"
     cd "${tempdir}/fresh_clone_test"
     git init
+    git checkout -B "${default_branch}"
     git config user.name "${test_user_name}"
     git config user.email "${test_user_email}"
     echo "test data" > test.txt

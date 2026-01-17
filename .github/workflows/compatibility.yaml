@@ -7,7 +7,9 @@ on:
     - cron: "0 0 * * 0" # Weekly on Sundays
 
 jobs:
-  # Validate 3 versions of git
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Validate 3 versions of git and GnuPG
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   git:
     name: Git & GnuPG
     runs-on: ubuntu-latest
@@ -34,7 +36,45 @@ jobs:
       - name: Run Tests
         run: make test
 
+  # Ubuntu 20.04
+  # gpg (GnuPG) 2.2.19
+  # libgcrypt 1.8.5
+  # Home: /github/home/.gnupg
+  # Supported algorithms:
+  # Pubkey: RSA, ELG, DSA, ECDH, ECDSA, EDDSA
+  # Cipher: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256, TWOFISH,
+  #         CAMELLIA128, CAMELLIA192, CAMELLIA256
+  # Hash: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
+  # Compression: Uncompressed, ZIP, ZLIB, BZIP2
+  # git version 2.25.1
+
+  # Ubuntu 22.04
+  # gpg (GnuPG) 2.2.27
+  # libgcrypt 1.9.4
+  # Home: /github/home/.gnupg
+  # Supported algorithms:
+  # Pubkey: RSA, ELG, DSA, ECDH, ECDSA, EDDSA
+  # Cipher: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256, TWOFISH,
+  #         CAMELLIA128, CAMELLIA192, CAMELLIA256
+  # Hash: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
+  # Compression: Uncompressed, ZIP, ZLIB, BZIP2
+  # git version 2.34.1
+
+  # Ubuntu 24.04
+  # gpg (GnuPG) 2.4.4
+  # libgcrypt 1.10.3
+  # Home: /github/home/.gnupg
+  # Supported algorithms:
+  # Pubkey: RSA, ELG, DSA, ECDH, ECDSA, EDDSA
+  # Cipher: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256, TWOFISH,
+  #         CAMELLIA128, CAMELLIA192, CAMELLIA256
+  # Hash: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
+  # Compression: Uncompressed, ZIP, ZLIB, BZIP2
+  # git version 2.43.0
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Validate completions for bash, zsh, and fish
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   shell-bash-zsh-fish:
     name: Shell Completion Syntax
     runs-on: ubuntu-latest
