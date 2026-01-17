@@ -9,7 +9,7 @@ on:
 jobs:
   # Validate 3 versions of git
   git:
-    name: Git / GnuPG Compatibility
+    name: Git & GnuPG
     runs-on: ubuntu-latest
     container:
       image: ${{ matrix.image }}
@@ -21,10 +21,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install dependencies (container is root)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y curl gnupg git python3-docutils
+          apt-get update
+          apt-get install -y curl gnupg git python3-docutils
 
       - name: Tool versions (check)
         run: |
