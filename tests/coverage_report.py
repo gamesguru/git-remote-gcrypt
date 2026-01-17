@@ -51,11 +51,33 @@ else:
 
 
 if missed:
-    missed.sort(key=int)  # Sort for deterministic output
+    missed.sort(key=int)
+    # Group consecutive lines
+    ranges = []
+    if missed:
+        start = int(missed[0])
+        prev = start
+        for x in missed[1:]:
+            curr = int(x)
+            if curr == prev + 1:
+                prev = curr
+            else:
+                if start == prev:
+                    ranges.append(str(start))
+                else:
+                    ranges.append(f"{start}-{prev}")
+                start = curr
+                prev = curr
+        # Append the last range
+        if start == prev:
+            ranges.append(str(start))
+        else:
+            ranges.append(f"{start}-{prev}")
+
     print(f"\033[31;1m{len(missed)} missing lines\033[0m in {patt}:")
     print(
         textwrap.fill(
-            ", ".join(missed), width=72, initial_indent="  ", subsequent_indent="  "
+            ", ".join(ranges), width=72, initial_indent="  ", subsequent_indent="  "
         )
     )
 

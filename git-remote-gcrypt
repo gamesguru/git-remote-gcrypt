@@ -792,7 +792,9 @@ early_safety_check()
 			return 0
 		fi
 
-		if [ "$(git config --bool gcrypt.allow-unencrypted-remote)" = "true" ]; then
+
+		if [ "$(git config --bool remote."$NAME".gcrypt-allow-unencrypted-remote)" = "true" ] || \
+		   [ "$(git config --bool gcrypt.allow-unencrypted-remote)" = "true" ]; then
 			return 0
 		fi
 
@@ -823,7 +825,9 @@ early_safety_check()
 		return 0
 	fi
 
-	if [ "$(git config --bool gcrypt.allow-unencrypted-remote)" = "true" ]; then
+
+	if [ "$(git config --bool remote."$NAME".gcrypt-allow-unencrypted-remote)" = "true" ] || \
+	   [ "$(git config --bool gcrypt.allow-unencrypted-remote)" = "true" ]; then
 		return 0
 	fi
 
@@ -1153,9 +1157,10 @@ check_safety()
 		if [ "$(line_count "$bad_files")" -gt 5 ]; then
 			echo_info "  ... (and others)"
 		fi
-		
+
 		# Check config to see if we should ignore
-		if [ "$(git config --bool gcrypt.allow-unencrypted-remote)" = "true" ]; then
+		if [ "$(git config --bool remote."$NAME".gcrypt-allow-unencrypted-remote)" = "true" ] || \
+		   [ "$(git config --bool gcrypt.allow-unencrypted-remote)" = "true" ]; then
 			echo_info "WARNING: Proceeding because gcrypt.allow-unencrypted-remote is set."
 			return 0
 		fi

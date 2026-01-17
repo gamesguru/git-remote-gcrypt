@@ -48,6 +48,7 @@ gpg --batch --generate-key "${tempdir}/key_params" >/dev/null 2>&1
 # Git config
 export GIT_CONFIG_SYSTEM=/dev/null
 export GIT_CONFIG_GLOBAL="${tempdir}/gitconfig"
+unset GIT_CONFIG_PARAMETERS
 git config --global user.name "Test User"
 git config --global user.email "test@example.com"
 git config --global init.defaultBranch "master"

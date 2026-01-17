@@ -22,6 +22,7 @@ export PATH="$SCRIPT_DIR:$PATH"
 # Isolate git config from user environment
 export GIT_CONFIG_SYSTEM=/dev/null
 export GIT_CONFIG_GLOBAL=/dev/null
+unset GIT_CONFIG_PARAMETERS
 
 # Suppress git advice messages
 # Note: git-remote-gcrypt reads actual config files, not just CLI -c options
@@ -84,11 +85,13 @@ mkdir -p "$tempdir/subdir"
 echo "NESTED=123" >"$tempdir/subdir/nested.txt"
 
 echo "SPACE=789" >"$tempdir/Has Space.txt"
+echo "PARENS=ABC" >"$tempdir/Has (Parens).txt"
 
 BLOB1=$($GIT hash-object -w "$tempdir/secret1.txt")
 BLOB2=$($GIT hash-object -w "$tempdir/secret2.txt")
 BLOB3=$($GIT hash-object -w "$tempdir/subdir/nested.txt")
 BLOB4=$($GIT hash-object -w "$tempdir/Has Space.txt")
+BLOB5=$($GIT hash-object -w "$tempdir/Has (Parens).txt")
 
 # Create root tree using index
 export GIT_INDEX_FILE=index.dirty
@@ -96,6 +99,7 @@ $GIT update-index --add --cacheinfo 100644 "$BLOB1" "secret1.txt"
 $GIT update-index --add --cacheinfo 100644 "$BLOB2" "secret2.txt"
 $GIT update-index --add --cacheinfo 100644 "$BLOB3" "subdir/nested.txt"
 $GIT update-index --add --cacheinfo 100644 "$BLOB4" "Has Space.txt"
+$GIT update-index --add --cacheinfo 100644 "$BLOB5" "Has (Parens).txt"
 TREE=$($GIT write-tree)
 rm index.dirty
 
@@ -129,10 +133,10 @@ assert_grep "Usage: git-remote-gcrypt clean" "$output" "clean shows usage when n
 # --------------------------------------------------
 # Test 2: Safety Check (Abort on non-gcrypt)
 # --------------------------------------------------
-print_info "Test 2: Safety Check (Abort on non-gcrypt)..."
+print_info "Test 2: Safety Check (Abort on non-gcrypt --force)..."
 cd "$tempdir/remote.git"
-output=$("$SCRIPT_DIR/git-remote-gcrypt" clean "$tempdir/remote.git" 2>&1 || :)
-assert_grep "Error: No gcrypt manifest found" "$output" "clean aborts on non-gcrypt repo"
+output=$("$SCRIPT_DIR/git-remote-gcrypt" clean --force "$tempdir/remote.git" 2>&1 || :)
+assert_grep "Error: No gcrypt manifest found" "$output" "clean --force aborts on non-gcrypt repo"
 
 if $GIT ls-tree HEAD | grep -q "secret1.txt"; then
 	print_success "Files preserved (Safety check passed)"
@@ -249,9 +253,10 @@ print_info "Test 7: clean --init (Bypass manifest check)..."
 
 # Reuse the dirty remote from earlier ($tempdir/remote.git) which has secret1.txt and secret2.txt
 
-# 1. Standard clean should fail (as tested in Test 2)
+# 2. Standard clean should warn and list files (dry-run)
 output=$("$SCRIPT_DIR/git-remote-gcrypt" clean "gcrypt::$tempdir/remote.git" 2>&1 || :)
-assert_grep "Error: No gcrypt manifest found" "$output" "standard clean fails on dirty remote"
+assert_grep "WARNING: No gcrypt manifest found" "$output" "clean warns on dirty remote"
+assert_grep "Listing all files as potential garbage" "$output" "clean lists files on dirty remote"
 
 # 2. Clean with --init should succeed (scan only)
 output=$("$SCRIPT_DIR/git-remote-gcrypt" clean --init "gcrypt::$tempdir/remote.git" 2>&1 || :)
@@ -260,6 +265,7 @@ assert_grep "Found the following files to remove" "$output" "--init scan found f
 assert_grep "secret1.txt" "$output" "--init found secret1.txt"
 assert_grep "subdir/nested.txt" "$output" "--init found nested file in subdir"
 assert_grep "Has Space.txt" "$output" "--init found file with spaces"
+assert_grep "Has (Parens).txt" "$output" "--init found file with parens"
 
 # 3. Clean with --init --force should remove files
 "$SCRIPT_DIR/git-remote-gcrypt" clean --init --force "gcrypt::$tempdir/remote.git" >/dev/null 2>&1
