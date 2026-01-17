@@ -167,7 +167,7 @@ print_info "Step 2: Creating source repository..."
 {
 	git init -- "${tempdir}/first"
 	cd "${tempdir}/first"
-	git checkout -b "${default_branch}"
+	git checkout -B "${default_branch}"
 	for ((i = 0; i < num_commits; ++i)); do
 		for ((j = 0; j < files_per_commit; ++j)); do
 			file_index=$((i * files_per_commit + j))
