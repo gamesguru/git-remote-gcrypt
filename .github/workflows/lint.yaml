@@ -100,8 +100,8 @@ jobs:
       - name: Install dependencies
         run: pkg update && pkg install -y git make
 
-      - name: Run your test script
-        run: ./my-test-script.sh
+      - name: Run verification
+        run: make check/install
 
   # Lint job
   lint:

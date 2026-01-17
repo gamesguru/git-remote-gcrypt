@@ -39,12 +39,20 @@ COMMANDS_LIST=$(echo "$RAW_HELP" | awk '/^  [a-z]+ / {print $1}' | grep -vE "^(h
 # Text: "    clean -f, --force    Actually delete files..."
 # We want to extract flags properly.
 # Get lines, then extract words starting with -
+# Stop at the first word that doesn't start with - (description start)
 CLEAN_FLAGS_RAW=$(echo "$RAW_HELP" | grep "^    clean -" | awk '{
 	out=""
-	if ($2 ~ /^-/) out=$2
-	if ($3 ~ /^-/) out=out " " $3
+	for (i=2; i<=NF; i++) {
+		if ($i ~ /^-/) {
+			# remove comma if present
+			sub(",", "", $i)
+			out = out ? out " " $i : $i
+		} else {
+			break
+		}
+	}
 	print out
-}' | sed 's/,//g')
+}')
 
 CLEAN_FLAGS_BASH=$(echo "$CLEAN_FLAGS_RAW" | tr '\n' ' ' | sed 's/  */ /g; s/ $//')
 
@@ -56,19 +64,35 @@ echo "$CLEAN_FLAGS_RAW" | while read -r line; do
 	# line is "-f --force" or "--hard"
 	# simple split
 	flags=$(echo "$line" | tr ' ' '\n')
-	# Build exclusion list
-	excl="($line)"
-	# Build flag list
+	# Build exclusion list (all flags in this group exclude each other self, but wait,
+	# usually -f and --force are the same.
+	# The user wants: '(-f --force)'{-f,--force}'[desc]'
+
+	# Check if we have multiple flags (aliases)
 	if echo "$line" | grep -q " "; then
-		# multiple flags
-		fspec="{$line}"
-		fspec=$(echo "$fspec" | sed 's/ /,/g')
+		# "(-f --force)"
+		excl="($line)"
+		# "{-f,--force}"
+		fspec="{$(echo "$line" | sed 's/ /,/g')}"
 	else
+		# "" (no exclusion needed against itself strictly, or just empty for single)
+		# But usually clean flags are distinct.
+		excl=""
 		fspec="$line"
 	fi
-	# Description - just generic
+
+	# Description - specific descriptions would be better, but generic for now.
+	# We rely on the fact that these are clean flags.
+	desc="[Flag]"
+
 	# Use printf to avoid newline issues in variable
-	printf " '%s'${fspec}'[flag]'" "$excl"
+	# Note: Zsh format is 'exclusion:long:desc' or 'exclusion'flag'desc'
+	# '(-f --force)'{-f,--force}'[Actually delete files]'
+	if [ -n "$excl" ]; then
+		printf " '%s'%s'%s'" "$excl" "$fspec" "$desc"
+	else
+		printf " %s'%s'" "$fspec" "$desc"
+	fi
 done >.zsh_flags_tmp
 CLEAN_FLAGS_ZSH=$(cat .zsh_flags_tmp)
 rm .zsh_flags_tmp

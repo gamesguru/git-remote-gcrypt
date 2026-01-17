@@ -68,7 +68,7 @@ $GIT commit -m "Clean history" >/dev/null
 print_info "Force pushing with GCRYPT_FULL_REPACK=1..."
 export GCRYPT_FULL_REPACK=1
 # We need to force push to overwrite the old master
-if git push --force origin clean-history:master >push.log 2>&1; then
+if $GIT push --force origin clean-history:master >push.log 2>&1; then
 	print_success "Push successful"
 	cat push.log
 else

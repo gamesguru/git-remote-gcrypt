@@ -55,6 +55,8 @@ done
 exec gpg "\${args[@]}"
 EOF
 chmod +x "${GNUPGHOME}/gpg"
+# VIOLATION FIX: Add wrapper to PATH so it's actually used
+export PATH="${GNUPGHOME}:$PATH"
 
 # Generate key
 echo "Generating GPG key..."
@@ -69,8 +71,8 @@ git remote add origin "gcrypt::$REMOTE_DIR"
 git config remote.origin.gcrypt-participants "test@test.com"
 git config remote.origin.gcrypt-signingkey "test@test.com"
 
-# Configure global git for test to avoid advice noise
-git config --global advice.defaultBranchName false
+# Configure local git for test (VIOLATION FIX: Removed --global)
+git config advice.defaultBranchName false
 
 export PATH="$PROJECT_ROOT:$PATH"
 

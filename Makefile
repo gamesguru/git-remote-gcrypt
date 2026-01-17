@@ -212,7 +212,7 @@ install/user:	##H make install prefix=~/.local
 
 .PHONY: check/install
 check/install:	##H Verify installation works
-	bash ./tests/installer-test-verify.sh
+	bash ./tests/verify-system-install.sh
 
 
 .PHONY: uninstall/, uninstall

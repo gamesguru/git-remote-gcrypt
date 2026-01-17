@@ -46,9 +46,9 @@ chmod +x "${GNUPGHOME}/gpg"
 # Git config isolation
 export GIT_CONFIG_SYSTEM=/dev/null
 export GIT_CONFIG_GLOBAL="$TEST_DIR/gitconfig"
-git config --global user.email "test@test.com"
-git config --global user.name "Test"
-git config --global init.defaultBranch "master"
+git config user.email "test@test.com"
+git config user.name "Test"
+git config init.defaultBranch "master"
 
 echo "Generating GPG key..."
 gpg --batch --passphrase "" --quick-generate-key "Test <test@test.com>"
