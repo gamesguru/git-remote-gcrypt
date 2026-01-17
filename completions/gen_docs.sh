@@ -63,9 +63,7 @@ CLEAN_FLAGS_ZSH=$(echo "$CLEAN_FLAGS_RAW" | while read -r line; do
 	# line is "-f --force" or "--hard"
 	# simple split
 	flags=$(echo "$line" | tr ' ' '\n')
-	# Build exclusion list (all flags in this group exclude each other self, but wait,
-	# usually -f and --force are the same.
-	# The user wants: '(-f --force)'{-f,--force}'[desc]'
+	# Build exclusion list (all flags in this group exclude each other self
 
 	# Check if we have multiple flags (aliases)
 	if echo "$line" | grep -q " "; then
@@ -87,11 +85,11 @@ CLEAN_FLAGS_ZSH=$(echo "$CLEAN_FLAGS_RAW" | while read -r line; do
 	# Use printf to avoid newline issues in variable
 	# Zsh format: '(-f --force)'{-f,--force}'[Actually delete files]'
 	if [ -n "$excl" ]; then
-		printf "'%s'%s'%s'" "$excl" "$fspec" "$desc"
+		printf "'%s'%s'%s'\n" "$excl" "$fspec" "$desc"
 	else
-		printf "%s'%s'" "$fspec" "$desc"
+		printf "%s'%s'\n" "$fspec" "$desc"
 	fi
-done | tr '\n' ' ')
+done | tr '\n' ' ' | sed 's/ $//')
 
 # For Fish
 # We need to turn "-f --force" into: -s f -l force
