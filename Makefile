@@ -181,12 +181,11 @@ CHECK_COVERAGE = $(if $(call find_coverage_xml,$(1)), \
 	XML_FILE="$(call find_coverage_xml,$(1))" PATT="$(2)" FAIL_UNDER="$(3)" python3 tests/coverage_report.py, \
 	echo "" ; \
 	echo "Error: No coverage report found for $(2) in $(1)" ; \
-	exit 1)
+	false)
 
 
 .PHONY: test/cov
 test/cov:	##H Show coverage gaps
-	@err=0; \
 	$(call CHECK_COVERAGE,$(COV_SYSTEM),git-remote-gcrypt,56) || err=1; \
 	$(call CHECK_COVERAGE,$(COV_INSTALL),install.sh,84) || err=1; \
 	exit $$err

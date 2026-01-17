@@ -22,7 +22,11 @@ print_info "Running install logic tests in $SANDBOX..."
 ln -s "$REPO_ROOT/install.sh" "$SANDBOX/install.sh"
 ln -s "$REPO_ROOT/git-remote-gcrypt" "$SANDBOX/git-remote-gcrypt"
 ln -s "$REPO_ROOT/utils" "$SANDBOX/utils"
-ln -s "$REPO_ROOT/completions" "$SANDBOX/completions"
+cp -r "$REPO_ROOT/completions" "$SANDBOX/completions"
+# Mock gen_docs.sh to avoid kcov tracing issues with child process
+echo '#!/bin/sh' > "$SANDBOX/completions/gen_docs.sh"
+echo 'exit 0' >> "$SANDBOX/completions/gen_docs.sh"
+chmod +x "$SANDBOX/completions/gen_docs.sh"
 # Copy README as it might be edited/checked
 cp "$REPO_ROOT/README.rst" "$SANDBOX/"
 cp "$REPO_ROOT/completions/templates/README.rst.in" "$SANDBOX/"
