@@ -13,7 +13,6 @@ complete -c git-remote-gcrypt -n "__fish_seen_subcommand_from check" -a "(git re
 complete -c git-remote-gcrypt -n "__fish_seen_subcommand_from stat" -a "(git remote 2>/dev/null)" -d 'Git Remote'
 
 # Clean flags
-complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean" -s -force -l Actually -d 'Flag';
-complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean" -s -init -l Allow -d 'Flag';
-complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean" -s -hard -l Override -d 'Flag';
-
+complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean" -l force -d 'Flag'
+complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean" -l init -d 'Flag'
+complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean" -l hard -d 'Flag'

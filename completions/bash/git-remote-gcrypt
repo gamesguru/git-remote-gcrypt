@@ -22,7 +22,7 @@ _git_remote_gcrypt() {
 	case "${COMP_WORDS[1]}" in
 	clean)
 		local remotes=$(git remote -v 2>/dev/null | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
-		COMPREPLY=($(compgen -W "--force Actually --init Allow --hard Override $remotes" -- "$cur"))
+		COMPREPLY=($(compgen -W "--force --init --hard $remotes" -- "$cur"))
 		return 0
 		;;
 	check | stat)

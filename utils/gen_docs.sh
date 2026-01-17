@@ -36,9 +36,9 @@ COMMANDS_HELP=$(echo "$RAW_HELP" | sed -n '/^Options:/,$p' | sed 's/^/    /' | s
 COMMANDS_LIST=$(echo "$RAW_HELP" | awk '/^  [a-z]+ / {print $1}' | grep -vE "^(help|version|capabilities|list|push|fetch)$" | sort | tr '\n' ' ' | sed 's/ $//')
 
 # Extract clean flags
-# Text: "    clean -f, --force    Actually delete files..."
-# We want: "-f --force -i --init" for Bash
-CLEAN_FLAGS_RAW=$(echo "$RAW_HELP" | grep "^    clean -" | awk '{print $2, $3}' | sed 's/,//g')
+# Text: "    clean --force        Actually delete files..."
+# We want: "--force --init --hard"
+CLEAN_FLAGS_RAW=$(echo "$RAW_HELP" | grep "^    clean -" | awk '{print $2}')
 CLEAN_FLAGS_BASH=$(echo "$CLEAN_FLAGS_RAW" | tr '\n' ' ' | sed 's/ $//')
 
 # For Zsh: we want simple list for now as per plan, user asked for dynamic but safe.
@@ -51,25 +51,28 @@ CLEAN_FLAGS_ZSH=""
 COMMA_FLAGS=$(echo "$CLEAN_FLAGS_BASH" | tr ' ' ',')
 if [ -n "$CLEAN_FLAGS_BASH" ]; then
 	# zsh _arguments requires format: '(exclusion)'{-f,--long}'[desc]' as ONE string (no spaces)
+	# Since we only have one flag per line now (long only), exclusion is just itself or list of all?
+	# Mutually exclusive? Maybe. For now, simple list.
+	# Actually, with single flags, no need for the {...} brace expansion for aliases.
+	# Just list them.
 	CLEAN_FLAGS_ZSH="'(${CLEAN_FLAGS_BASH})'{${COMMA_FLAGS}}'[flag]'"
 else
 	CLEAN_FLAGS_ZSH=""
 fi
 
-# For Fish
-# We need to turn "-f, --force" into:
-# complete ... -s f -l force ...
 CLEAN_FLAGS_FISH=""
 # Use a loop over the raw lines
 IFS="
 "
-for line in $CLEAN_FLAGS_RAW; do
-	# line is like "-f --force"
-	short=$(echo "$line" | awk '{print $1}' | sed 's/-//')
-	long=$(echo "$line" | awk '{print $2}' | sed 's/--//')
-	# Escape quotes if needed (none usually)
-	CLEAN_FLAGS_FISH="${CLEAN_FLAGS_FISH}complete -c git-remote-gcrypt -f -n \"__fish_seen_subcommand_from clean\" -s $short -l $long -d 'Flag';
+newline="
 "
+sep=""
+for line in $CLEAN_FLAGS_RAW; do
+	# line is just "--force" now
+	long="${line#--}"
+	# Escape quotes if needed (none usually)
+	CLEAN_FLAGS_FISH="${CLEAN_FLAGS_FISH}${sep}complete -c git-remote-gcrypt -f -n \"__fish_seen_subcommand_from clean\" -l $long -d 'Flag'"
+	sep="$newline"
 done
 unset IFS
 
