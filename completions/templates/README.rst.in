@@ -295,7 +295,7 @@ If no URL or remote is specified, ``git-remote-gcrypt`` will list all
 available ``gcrypt::`` remotes.
 
 By default, this command only performs a scan. To actually remove the
-unencrypted files, you must use the ``--force`` (or ``-f``) flag::
+unencrypted files, you must use the ``--force`` flag::
 
     git-remote-gcrypt clean url --force
 

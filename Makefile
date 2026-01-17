@@ -108,8 +108,10 @@ test/:	##H Run tests (purity checks only if kcov missing)
 .PHONY: test/installer
 test/installer:	##H Test installer logic
 	@rm -rf $(COV_INSTALL)
-	@mkdir -p $(COV_INSTALL)
+	@mkdir -p $(COV_INSTALL) .tmp
+	@rm -f .tmp/kcov.log
 	@export COV_DIR=$(COV_INSTALL); \
+	 set -o pipefail; \
 	 for test_script in tests/installer-test*.sh; do \
 	     if [ "$$test_script" = "tests/installer-test-logic.sh" ]; then \
 	         kcov --bash-dont-parse-binary-dir \

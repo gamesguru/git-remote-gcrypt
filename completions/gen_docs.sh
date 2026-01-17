@@ -37,20 +37,39 @@ COMMANDS_LIST=$(echo "$RAW_HELP" | awk '/^  [a-z]+ / {print $1}' | grep -vE "^(h
 
 # Extract clean flags
 # Text: "    clean -f, --force    Actually delete files..."
-# We want: "-f --force -i --init" for Bash
-CLEAN_FLAGS_RAW=$(echo "$RAW_HELP" | grep "^    clean -" | awk '{print $2, $3}' | sed 's/,//g')
-CLEAN_FLAGS_BASH=$(echo "$CLEAN_FLAGS_RAW" | tr '\n' ' ' | sed 's/ $//')
+# We want to extract flags properly.
+# Get lines, then extract words starting with -
+CLEAN_FLAGS_RAW=$(echo "$RAW_HELP" | grep "^    clean -" | awk '{
+	out=""
+	if ($2 ~ /^-/) out=$2
+	if ($3 ~ /^-/) out=out " " $3
+	print out
+}' | sed 's/,//g')
 
-# For Zsh: we want simple list for now as per plan, user asked for dynamic but safe.
-# Constructing a simple list of flags requires parsing.
-# The previous python script just injected them.
+CLEAN_FLAGS_BASH=$(echo "$CLEAN_FLAGS_RAW" | tr '\n' ' ' | sed 's/  */ /g; s/ $//')
+
+# For Zsh: Generate proper spec strings
 CLEAN_FLAGS_ZSH=""
-# We'll just provide the flags as a list for _arguments
-# ZSH format roughly: '(-f --force)'{-f,--force}'[desc]'
-# Let's simplify and just pass the flags for now to match the user's "native completion" request without over-engineering the parsing in shell.
-# We will just list them.
-COMMA_FLAGS=$(echo "$CLEAN_FLAGS_BASH" | tr ' ' ',')
-CLEAN_FLAGS_ZSH="'(${CLEAN_FLAGS_BASH})' {${COMMA_FLAGS}} '[flag]'"
+IFS="
+"
+for line in $CLEAN_FLAGS_RAW; do
+	# line is "-f --force" or "--hard"
+	# simple split
+	flags=$(echo "$line" | tr ' ' '\n')
+	# Build exclusion list
+	excl="($line)"
+	# Build flag list
+	if echo "$line" | grep -q " "; then
+		# multiple flags
+		fspec="{$line}"
+		fspec=$(echo "$fspec" | sed 's/ /,/g')
+	else
+		fspec="$line"
+	fi
+	# Description - we could extract it but for now generic
+	CLEAN_FLAGS_ZSH="${CLEAN_FLAGS_ZSH} '${excl}'${fspec}'[flag]'"
+done
+unset IFS
 
 # For Fish
 # We need to turn "-f, --force" into:

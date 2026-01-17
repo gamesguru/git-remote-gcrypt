@@ -61,7 +61,7 @@ Command Reference
       check [URL]      Check if URL is a gcrypt repository
       clean [URL|REMOTE] Scan/Clean unencrypted files from remote
         clean --force        Actually delete files (default is scan only)
-        clean --init         Allow cleaning valid files (requires --force)
+        clean --init         Allow cleaning uninitialized repos (requires --force)
         clean --hard         Override safety checks (requires --force)
       stat [URL|REMOTE] Show diagnostics (file counts, tracked vs untracked)
     Git Protocol Commands (for debugging):
@@ -73,6 +73,7 @@ Command Reference
     Environment Variables:
       GCRYPT_DEBUG=1        Enable verbose debug logging to stderr
       GCRYPT_TRACE=1        Enable shell tracing (set -x) for rsync/curl commands
+      GCRYPT_FULL_REPACK=1  Force full repack when pushing
 
 Configuration
 =============
@@ -312,7 +313,7 @@ If no URL or remote is specified, ``git-remote-gcrypt`` will list all
 available ``gcrypt::`` remotes.
 
 By default, this command only performs a scan. To actually remove the
-unencrypted files, you must use the ``--force`` (or ``-f``) flag::
+unencrypted files, you must use the ``--force`` flag::
 
     git-remote-gcrypt clean url --force
 
