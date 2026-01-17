@@ -165,6 +165,7 @@ test/system:	##H Run logic tests (with bash & coverage)
 	          $(COV_SYSTEM)/$$(basename $$test_script) \
 	          ./$$test_script; \
 	 done; \
+	 kcov --merge $(COV_SYSTEM)/merged $(COV_SYSTEM)/system-test-*.sh; \
 	 sed -i 's|^#!/bin/bash|#!/bin/sh|' git-remote-gcrypt; \
 	 trap - EXIT
 
