@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   # Handles Ubuntu and macOS
-  install-unix:
+  Unix:
     runs-on: ${{ matrix.os }}
 
     env:
@@ -53,7 +53,7 @@ jobs:
         run: make check/install
 
   # Handles RedHat (UBI Container)
-  install-rh:
+  RedHat:
     runs-on: ubuntu-latest
 
     env:
@@ -97,7 +97,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Fix permissions for Docker
-        run: chmod -R u+rwX,go+rX .
+        run: chmod -R 777 .
 
       - name: Run tests in Termux
         run: |

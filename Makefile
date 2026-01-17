@@ -53,9 +53,15 @@ endef
 
 
 .PHONY: check/deps
-check/deps:	##H Verify kcov & shellcheck
+check/deps: check/deps/shellcheck check/deps/kcov ##H Verify kcov & shellcheck
+
+.PHONY: check/deps/shellcheck
+check/deps/shellcheck:
 	@$(call print_info,  --- shellcheck version ---)
 	@shellcheck --version
+
+.PHONY: check/deps/kcov
+check/deps/kcov:
 	@$(call print_info,  --- kcov version ---)
 	@kcov --version
 
@@ -133,7 +139,7 @@ test/installer:	##H Test installer logic
 
 
 .PHONY: test/purity
-test/purity: check/deps/shellcheck	##H Run logic tests (with native /bin/sh)
+test/purity:	##H Run logic tests (with native /bin/sh)
 	@echo "running system tests (native /bin/sh)..."
 	@export GPG_TTY=$$(tty); \
 	 [ -n "$(DEBUG)$(V)" ] && export GCRYPT_DEBUG=1; \

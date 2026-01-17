@@ -7,7 +7,8 @@ on:
     - cron: "0 0 * * 0" # Weekly on Sundays
 
 jobs:
-  git-versions:
+  # Validate 3 versions of git
+  git:
     name: Git Compatibility (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
 
@@ -18,28 +19,39 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git curl python3-docutils
+
       - name: Run Tests
         run: make test
 
-  shell-syntax:
+  # Validate completions for bash, zsh, and fish
+  shell-bash-zsh-fish:
     name: Shell Completion Syntax
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Show git version
+        run: git --version
+
       - name: Install Shells
         run: |
           sudo apt-get update
           sudo apt-get install -y zsh fish
-      - name: Generate Completions
+
+      - name: Generate Completions (if not up to date)
         run: make generate
+
       - name: Check Bash Syntax
         run: bash -n completions/bash/git-remote-gcrypt
+
       - name: Check Zsh Syntax
         run: zsh -n completions/zsh/_git-remote-gcrypt
+
       - name: Check Fish Syntax
         run: fish --no-execute completions/fish/git-remote-gcrypt.fish
