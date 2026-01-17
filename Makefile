@@ -177,6 +177,8 @@ find_coverage_xml = $(or \
 
 CHECK_COVERAGE = $(if $(call find_coverage_xml,$(1)), \
 	echo "" ; \
+	echo "Debug: WILDCARD=$(wildcard $(1)/*/*/cobertura.xml)" ; \
+	echo "Debug: MERGED_FILTER=$(filter %/merged/kcov-merged/cobertura.xml, $(wildcard $(1)/*/*/cobertura.xml))" ; \
 	echo "Report for: file://$(abspath $(dir $(call find_coverage_xml,$(1))))/index.html" ; \
 	XML_FILE="$(call find_coverage_xml,$(1))" PATT="$(2)" FAIL_UNDER="$(3)" python3 tests/coverage_report.py, \
 	echo "" ; \

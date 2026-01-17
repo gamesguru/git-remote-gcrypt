@@ -24,8 +24,8 @@ ln -s "$REPO_ROOT/git-remote-gcrypt" "$SANDBOX/git-remote-gcrypt"
 ln -s "$REPO_ROOT/utils" "$SANDBOX/utils"
 cp -r "$REPO_ROOT/completions" "$SANDBOX/completions"
 # Mock gen_docs.sh to avoid kcov tracing issues with child process
-echo '#!/bin/sh' > "$SANDBOX/completions/gen_docs.sh"
-echo 'exit 0' >> "$SANDBOX/completions/gen_docs.sh"
+echo '#!/bin/sh' >"$SANDBOX/completions/gen_docs.sh"
+echo 'exit 0' >>"$SANDBOX/completions/gen_docs.sh"
 chmod +x "$SANDBOX/completions/gen_docs.sh"
 # Copy README as it might be edited/checked
 cp "$REPO_ROOT/README.rst" "$SANDBOX/"

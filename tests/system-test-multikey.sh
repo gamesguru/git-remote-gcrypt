@@ -20,7 +20,9 @@ print_info "GPG Version detected: $gpg_ver"
 
 # Function to check if version strictly less than
 version_lt() {
-	[ "$1" = "$2" ] && return 1 || :
+	if [ "$1" = "$2" ]; then
+		return 1
+	fi
 	[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
 }
 
