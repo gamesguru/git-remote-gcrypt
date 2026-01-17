@@ -214,16 +214,9 @@ mkdir -p "$TERMUX_PREFIX/share/man/man1"
 unset prefix
 unset DESTDIR
 
-# Mock /usr/local as nonexistent by using a wrapper that interprets [ -d /usr/local ]
-# Since we can't truly hide /usr/local, we modify the installer call to point elsewhere
-# We copy the installer (breaking symlink) and patch it to check a nonexistent path instead of /usr/local
-
-rm -f "$INSTALLER"
-sed 's|/usr/local|/non/existent/path|g' "$REPO_ROOT/install.sh" >"$INSTALLER"
-chmod +x "$INSTALLER"
-
 # Run with PREFIX set but explicit prefix unset
-if PREFIX="$TERMUX_PREFIX" bash "$INSTALLER" >.install_log 2>&1; then
+# Mock /usr/local via _USR_LOCAL override
+if _USR_LOCAL="/non/existent/path" PREFIX="$TERMUX_PREFIX" bash "$INSTALLER" >.install_log 2>&1; then
 	if [ -f "$TERMUX_PREFIX/bin/git-remote-gcrypt" ]; then
 		printf "  ✓ %s\n" "Termux PREFIX auto-detection works"
 	else

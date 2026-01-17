@@ -1,20 +1,21 @@
-name: Compatibility
+---
+name: compat
 
 on:
-  push:
   pull_request:
   schedule:
     - cron: "0 0 * * 0" # Weekly on Sundays
 
 jobs:
-  # Test across different Ubuntu versions to verify git compatibility
   git-versions:
     name: Git Compatibility (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04, ubuntu-latest]
+
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
@@ -24,10 +25,10 @@ jobs:
       - name: Run Tests
         run: make test
 
-  # Verify generated shell completions are actually valid syntax in their respective shells
   shell-syntax:
     name: Shell Completion Syntax
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
       - name: Install Shells

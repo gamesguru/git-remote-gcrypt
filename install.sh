@@ -3,7 +3,7 @@ set -e
 
 # Auto-detect Termux: if /usr/local doesn't exist but $PREFIX does (Android/Termux)
 if [ -z "${prefix:-}" ]; then
-	if [ -d /usr/local ]; then
+	if [ -d "${_USR_LOCAL:-/usr/local}" ]; then
 		prefix=/usr/local
 	elif [ -n "${PREFIX:-}" ] && [ -d "$PREFIX" ]; then
 		# Termux sets $PREFIX to /data/data/com.termux/files/usr
