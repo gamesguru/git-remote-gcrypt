@@ -86,13 +86,14 @@ SAFE_CMDS=$(echo "$COMMANDS_LIST" | sed 's/ / /g') # just space separated
 # We'll read the template line by line? No, sed is standard.
 # We use a temp file for the replacement string to avoid sed escaping hell for large blocks?
 # Or just keep it simple.
-sed "s/{commands}/$COMMANDS_LIST/" "$ZSH_TMPL" |
-	sed "s|{clean_flags_zsh}|$CLEAN_FLAGS_ZSH|" >"$ZSH_OUT"
+sed "s/{commands}/$COMMANDS_LIST/" "$ZSH_TMPL" \
+	| sed "s|{clean_flags_zsh}|$CLEAN_FLAGS_ZSH|" >"$ZSH_OUT"
 
 # 6. Generate Fish
 echo "Generating Fish completions..."
 # Fish needs {not_sc_list} which matches {commands} (space separated)
-sed "s/{not_sc_list}/$COMMANDS_LIST/g" "$FISH_TMPL" |
+sed "s/{not_sc_list}/$COMMANDS_LIST/g" "$FISH_TMPL" \
+	|
 	# Multi-line replacement in sed is hard. Use awk?
 	# Or just injecting the string with escaped newlines.
 	sed "s|{clean_flags_fish}|$CLEAN_FLAGS_FISH|" >"$FISH_OUT"

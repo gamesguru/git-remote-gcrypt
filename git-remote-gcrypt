@@ -47,7 +47,7 @@ Options:
   check [URL]      Check if URL is a gcrypt repository
   clean [URL|REMOTE] Scan/Clean unencrypted files from remote
     clean --force        Actually delete files (default is scan only)
-    clean --init         Allow cleaning valid files (requires --force)
+    clean --init         Allow cleaning uninitialized repos (requires --force)
     clean --hard         Override safety checks (requires --force)
   stat [URL|REMOTE] Show diagnostics (file counts, tracked vs untracked)
 Git Protocol Commands (for debugging):
@@ -431,16 +431,17 @@ gitception_remove()
 		else
 			if ! git rm --cached --ignore-unmatch -q "$2"; then
 				echo_info "Error: Failed to remove '$2' because it has local modifications."
-				echo_info "Manual removal command: git rm --cached -f '$2'"
-				
+
+				# Hints for the user as requested
+				echo_info "Hints:"
+				echo_info "  1. To see all files with status differences:  git status"
+
 				suggest_args="--force --hard"
-				# If we are in init mode (FORCE_INIT set), the user MUST pass --init again
 				if [ "${FORCE_INIT:-}" = "yes" ]; then
 					suggest_args="--init $suggest_args"
 				fi
-				
-				echo_info "To force remove via tool, run:"
-				echo_info "  git-remote-gcrypt clean $suggest_args $URL"
+				echo_info "  2. To force clean the remote via tool:        git-remote-gcrypt clean $suggest_args $URL"
+
 				exit 1
 			fi
 		fi
@@ -593,11 +594,15 @@ EOF
 			rm -f "$1"/"$fn_"
 		done
 	else
+		# gitception handling
 		echo "$2" | while IFS= read -r fn_; do
 			gitception_remove "${1#gitception://}" "$fn_"
 		done
 	fi
 }
+
+REMOTE_REMOVE() { REMOVE "$@"; } # Alias if needed/used? No, just ensuring clean block.
+
 
 CLEAN_FINAL()
 {
@@ -1504,14 +1509,14 @@ cmd_clean()
 	if [ "$Did_find_repo" != "yes" ]; then
 		if [ "${FORCE_INIT:-}" = "yes" ]; then
 			echo_info "WARNING: No gcrypt manifest found, but --init specified."
-			echo_info "WARNING: Proceeding to scan/clean potential unencrypted files."
+			echo_info "WARNING: Proceeding to clean uninitialized repository."
 		elif isnull "$FORCE_CLEAN"; then
 			echo_info "WARNING: No gcrypt manifest found."
 			echo_info "WARNING: Listing all files as potential garbage (dry-run)."
 		else
 			echo_info "Error: No gcrypt manifest found on remote '$URL'."
 			echo_info "Aborting clean to prevent accidental data loss."
-			echo_info "To force initiation of the repository as gcrypt (and delete all old objects):"
+			echo_info "To force clean this uninitialized repository (e.g., to wipe before init):"
 			echo_info "  git-remote-gcrypt clean --init --force $URL"
 			exit 1
 		fi
