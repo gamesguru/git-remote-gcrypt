@@ -21,15 +21,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl gnupg git python3-docutils
+
       - name: Tool versions (check)
         run: |
           gpg --version
           git --version
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git curl python3-docutils
 
       - name: Run Tests
         run: make test
@@ -42,16 +42,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Shells
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zsh fish
+
       - name: Tool versions (check)
         run: |
           bash --version
           zsh --version
           fish --version
-
-      - name: Install Shells
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y zsh fish
 
       - name: Generate Completions (if not up to date)
         run: make generate
