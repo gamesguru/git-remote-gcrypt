@@ -43,6 +43,13 @@ exec gpg "${args[@]}"
 EOF
 chmod +x "${GNUPGHOME}/gpg"
 
+# Git config isolation
+export GIT_CONFIG_SYSTEM=/dev/null
+export GIT_CONFIG_GLOBAL="$TEST_DIR/gitconfig"
+git config --global user.email "test@test.com"
+git config --global user.name "Test"
+git config --global init.defaultBranch "master"
+
 echo "Generating GPG key..."
 gpg --batch --passphrase "" --quick-generate-key "Test <test@test.com>"
 
@@ -51,7 +58,7 @@ cd "$REPO_DIR"
 git init
 git config user.email "test@test.com"
 git config user.name "Test User"
-git config --global advice.defaultBranchName false
+git config advice.defaultBranchName false
 
 # Initialize local remote
 git init --bare "$REMOTE_DIR"
@@ -122,7 +129,7 @@ echo "Created garbage blob: $GARBAGE_BLOB"
 cd "$TEST_DIR/raw_backend"
 echo "Garbage Data" >".garbage (file)"
 git add ".garbage (file)"
-git commit -m "Inject unencrypted garbage"
+git commit -m "Inject unencrypted garbage" --no-gpg-sign
 git push origin master
 
 # Verify garbage exists
@@ -133,7 +140,8 @@ git-remote-gcrypt clean --repack --force origin
 
 # Verify garbage removal from backend
 cd "$TEST_DIR/raw_backend"
-git pull origin master
+git fetch origin master
+git reset --hard origin/master
 
 if [ -f ".garbage (file)" ]; then
 	echo "Failure: .garbage (file) still exists in backend!"

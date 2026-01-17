@@ -50,9 +50,9 @@ CLEAN_FLAGS_BASH=$(echo "$CLEAN_FLAGS_RAW" | tr '\n' ' ' | sed 's/  */ /g; s/ $/
 
 # For Zsh: Generate proper spec strings
 CLEAN_FLAGS_ZSH=""
-IFS="
-"
-for line in $CLEAN_FLAGS_RAW; do
+# Use while read loop to handle lines safely
+echo "$CLEAN_FLAGS_RAW" | while read -r line; do
+	[ -z "$line" ] && continue
 	# line is "-f --force" or "--hard"
 	# simple split
 	flags=$(echo "$line" | tr ' ' '\n')
@@ -66,26 +66,58 @@ for line in $CLEAN_FLAGS_RAW; do
 	else
 		fspec="$line"
 	fi
-	# Description - we could extract it but for now generic
-	CLEAN_FLAGS_ZSH="${CLEAN_FLAGS_ZSH} '${excl}'${fspec}'[flag]'"
-done
-unset IFS
+	# Description - just generic
+	# Use printf to avoid newline issues in variable
+	printf " '%s'${fspec}'[flag]'" "$excl"
+done >.zsh_flags_tmp
+CLEAN_FLAGS_ZSH=$(cat .zsh_flags_tmp)
+rm .zsh_flags_tmp
 
 # For Fish
-# We need to turn "-f, --force" into:
-# complete ... -s f -l force ...
+# We need to turn "-f --force" into: -s f -l force
+# And "--hard" into: -l hard
 CLEAN_FLAGS_FISH=""
-# Use a loop over the raw lines
-IFS="
-"
-for line in $CLEAN_FLAGS_RAW; do
-	# line is like "-f --force"
-	short=$(echo "$line" | awk '{print $1}' | sed 's/-//')
-	long=$(echo "$line" | awk '{print $2}' | sed 's/--//')
-	# Escape quotes if needed (none usually)
-	CLEAN_FLAGS_FISH="${CLEAN_FLAGS_FISH}complete -c git-remote-gcrypt -f -n \"__fish_seen_subcommand_from clean\" -s $short -l $long -d 'Flag';\n"
-done
-unset IFS
+echo "$CLEAN_FLAGS_RAW" | while read -r line; do
+	[ -z "$line" ] && continue
+
+	short=""
+	long=""
+
+	# Split by space
+	# Case 1: "-f --force" -> field1=-f, field2=--force
+	# Case 2: "--hard" -> field1=--hard
+	f1=$(echo "$line" | awk '{print $1}')
+	f2=$(echo "$line" | awk '{print $2}')
+
+	if echo "$f1" | grep -q "^--"; then
+		# Starts with --, so it's a long flag.
+		long=${f1#--}
+		# f2 is likely empty or next flag (but we assume cleaned format)
+		if [ -n "$f2" ]; then
+			# Should be descriptor or unexpected? Our parser above extracts only flags.
+			# But our parser above might extract "-f --force" as "$2 $3".
+			# If $2 is -f and $3 is --force.
+			# Just in case, let's treat f2 as potentially another flag if we didn't handle it?
+			# Actually, the parser at top produces "flag1 flag2".
+			:
+		fi
+	else
+		# Starts with - (short)
+		short=${f1#-}
+		if [ -n "$f2" ] && echo "$f2" | grep -q "^--"; then
+			long=${f2#--}
+		fi
+	fi
+
+	cmd='complete -c git-remote-gcrypt -f -n "__fish_seen_subcommand_from clean"'
+	[ -n "$short" ] && cmd="$cmd -s $short"
+	[ -n "$long" ] && cmd="$cmd -l $long"
+	cmd="$cmd -d 'Flag';"
+
+	printf "%s\n" "$cmd"
+done >.fish_tmp
+CLEAN_FLAGS_FISH=$(cat .fish_tmp)
+rm .fish_tmp
 
 # 3. Generate README
 echo "Generating $README_OUT..."
@@ -111,10 +143,13 @@ sed "s/{commands}/$COMMANDS_LIST/" "$ZSH_TMPL" \
 # 6. Generate Fish
 echo "Generating Fish completions..."
 # Fish needs {not_sc_list} which matches {commands} (space separated)
-sed "s/{not_sc_list}/$COMMANDS_LIST/g" "$FISH_TMPL" \
-	|
-	# Multi-line replacement in sed is hard. Use awk?
-	# Or just injecting the string with escaped newlines.
-	sed "s|{clean_flags_fish}|$CLEAN_FLAGS_FISH|" >"$FISH_OUT"
+# Use awk for safe replacement of multi-line string
+awk -v cmds="$COMMANDS_LIST" -v flags="$CLEAN_FLAGS_FISH" '
+	{
+		gsub(/{not_sc_list}/, cmds)
+		gsub(/{clean_flags_fish}/, flags)
+		print
+	}
+' "$FISH_TMPL" >"$FISH_OUT"
 
 echo "Done."
