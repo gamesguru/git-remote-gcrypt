@@ -50,6 +50,8 @@ export HOME="${tempdir}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(dirname "$SCRIPT_DIR")"
 test_version=$(git describe --tags --always --dirty 2>/dev/null || echo "test")
+# Escape special chars for sed (delimiter /, &, and backslash)
+test_version=$(printf '%s\n' "$test_version" | sed 's:[&/\]:\\&:g')
 cp "$repo_root/git-remote-gcrypt" "$tempdir/git-remote-gcrypt"
 sed -i "s/@@DEV_VERSION@@/$test_version/" "$tempdir/git-remote-gcrypt"
 chmod +x "$tempdir/git-remote-gcrypt"
