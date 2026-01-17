@@ -44,6 +44,7 @@ tempdir=$(mktemp -d)
 readonly tempdir
 # shellcheck disable=SC2064
 trap "rm -Rf -- '${tempdir}'" EXIT
+export HOME="${tempdir}"
 
 # Set up the PATH
 repo_root="${PWD}"

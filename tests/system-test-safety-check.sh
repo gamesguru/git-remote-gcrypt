@@ -25,6 +25,7 @@ GIT="git -c advice.defaultBranchName=false"
 # Create temp directory
 tempdir=$(mktemp -d)
 trap 'rm -rf "$tempdir"' EXIT
+export HOME="${tempdir}"
 
 # Isolate git config to prevent leaks from other tests
 export GIT_CONFIG_GLOBAL="${tempdir}/gitconfig"

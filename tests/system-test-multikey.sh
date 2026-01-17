@@ -26,12 +26,11 @@ version_lt() {
 	[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
 }
 
-# Determine if we expect the bug (Threshold: >= 2.2.20 assumed for now)
-# Ubuntu 20.04 (2.2.19) does NOT have the bug.
-# Ubuntu 22.04 (2.2.27) likely has it.
+# Determine if we expect the bug (Threshold: >= 2.4.5 assumed for now)
+# Ubuntu 22.04 (2.2.27) confirmed NOT to have it.
 # Arch (2.4.9) definitely has it.
 expect_bug=1
-if version_lt "$gpg_ver" "2.2.20"; then
+if version_lt "$gpg_ver" "2.4.5"; then
 	print_warn "GPG version $gpg_ver is old. We do not expect the checksum bug here."
 	expect_bug=0
 else
@@ -80,6 +79,7 @@ umask 077
 tempdir=$(mktemp -d)
 readonly tempdir
 trap 'rm -Rf -- "${tempdir}"' EXIT
+export HOME="${tempdir}"
 
 # Setup PATH to use local git-remote-gcrypt
 PATH=${PWD}:${PATH}

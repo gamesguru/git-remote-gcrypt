@@ -12,6 +12,7 @@ umask 077
 tempdir=$(mktemp -d)
 readonly tempdir
 trap 'rm -Rf -- "$tempdir"' EXIT
+export HOME="${tempdir}"
 
 # Ensure git-remote-gcrypt is in PATH
 repo_root="${PWD}"

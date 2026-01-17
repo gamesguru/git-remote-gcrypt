@@ -69,6 +69,7 @@ tempdir=$(mktemp -d)
 readonly tempdir
 # shellcheck disable=SC2064
 trap "rm -Rf -- '${tempdir}'" EXIT
+export HOME="${tempdir}"
 
 # Set up the PATH to favor the version of git-remote-gcrypt from the repository
 # rather than a version that might already be installed on the user's system.
