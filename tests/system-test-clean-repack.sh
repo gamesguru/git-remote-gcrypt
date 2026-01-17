@@ -28,18 +28,18 @@ export GNUPGHOME="$TEST_DIR/gpg"
 mkdir -p "$GNUPGHOME"
 chmod 700 "$GNUPGHOME"
 
-cat <<EOF >"${GNUPGHOME}/gpg"
+cat <<'EOF' >"${GNUPGHOME}/gpg"
 #!/usr/bin/env bash
 export GNUPGHOME="$GNUPGHOME"
 set -efuC -o pipefail; shopt -s inherit_errexit
-args=( "\${@}" )
-for ((i = 0; i < \${#}; ++i)); do
-    if [[ \${args[\${i}]} = "--secret-keyring" ]]; then
-        unset "args[\${i}]" "args[\$(( i + 1 ))]"
+args=( "${@}" )
+for ((i = 0; i < ${#}; ++i)); do
+    if [[ ${args[${i}]} = "--secret-keyring" ]]; then
+        unset "args[${i}]" "args[$(( i + 1 ))]"
         break
     fi
 done
-exec gpg "\${args[@]}"
+exec gpg "${args[@]}"
 EOF
 chmod +x "${GNUPGHOME}/gpg"
 
@@ -109,10 +109,38 @@ echo "Backend SHA: $HEAD_SHA"
 # Start should have 3 commits (init, push1, push2, push3) -> wait, init is implicit.
 # Each push updates the manifested repo.
 
-# Run clean --repack
+# Inject garbage to verify cleanup AND repack
+echo "GARBAGE" >garbage.txt
+GARBAGE_BLOB=$(git hash-object -w garbage.txt)
+echo "Created garbage blob: $GARBAGE_BLOB"
+# Manually inject into backend (simulate inconsistency)
+# But here we are simulating a gitception remote.
+# To simulate "garbage" (unencrypted file), we can push one or hack the backend.
+# Using 'git-remote-gcrypt' clean mechanism relies on files existing in the remote manifest (or filesystem for other backends).
+# For git backend, "garbage" is a file in the remote repo's HEAD tree that isn't in the manifest/packed list.
+# Let's clone backend, add file, push.
+cd "$TEST_DIR/raw_backend"
+echo "Garbage Data" >".garbage (file)"
+git add ".garbage (file)"
+git commit -m "Inject unencrypted garbage"
+git push origin master
+
+# Verify garbage exists
 cd "$REPO_DIR"
-echo "Running clean --repack..."
-git-remote-gcrypt clean --repack origin
+# Run clean --repack --force (needed because we have garbage now)
+echo "Running clean --repack --force..."
+git-remote-gcrypt clean --repack --force origin
+
+# Verify garbage removal from backend
+cd "$TEST_DIR/raw_backend"
+git pull origin master
+
+if [ -f ".garbage (file)" ]; then
+	echo "Failure: .garbage (file) still exists in backend!"
+	exit 1
+else
+	echo "Success: .garbage (file) removed."
+fi
 
 # Verify result
 # Clone backend again (pull) and check structure

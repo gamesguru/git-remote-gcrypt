@@ -89,6 +89,20 @@ jobs:
       - name: Verify [make check/install]
         run: make check/install
 
+  # Handles Android (Termux)
+  termux-test:
+    runs-on: ubuntu-latest
+    container:
+      image: termux/termux-docker:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: pkg update && pkg install -y git make
+
+      - name: Run your test script
+        run: ./my-test-script.sh
+
   # Lint job
   lint:
     runs-on: ubuntu-latest

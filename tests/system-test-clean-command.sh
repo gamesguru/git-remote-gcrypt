@@ -222,28 +222,28 @@ print_info "Injected garbage_file into remote $GREF"
 DOT_GARBAGE_BLOB=$(echo "HIDDEN GARBAGE" | $GIT hash-object -w --stdin)
 export GIT_INDEX_FILE=index.dotgarbage
 $GIT read-tree "$NEW_TREE"
-$GIT update-index --add --cacheinfo 100644 "$DOT_GARBAGE_BLOB" ".garbage_file"
+$GIT update-index --add --cacheinfo 100644 "$DOT_GARBAGE_BLOB" ".garbage (file)"
 NEW_TREE_DOT=$($GIT write-tree)
 rm index.dotgarbage
 NEW_COMMIT_DOT=$(echo "Inject dot garbage" | $GIT commit-tree "$NEW_TREE_DOT" -p "$NEW_COMMIT")
 $GIT update-ref "$GREF" "$NEW_COMMIT_DOT"
 
-if ! $GIT ls-tree -r "$GREF" | grep -q "\.garbage_file"; then
-	print_err "Failed to inject .garbage_file into $GREF"
+if ! $GIT ls-tree -r "$GREF" | grep -F -q ".garbage (file)"; then
+	print_err "Failed to inject .garbage (file) into $GREF"
 	exit 1
 fi
-print_info "Injected .garbage_file into remote $GREF"
+print_info "Injected '.garbage (file)' into remote $GREF"
 
 # 3. Scan (expect to find garbage_file)
 set -x
 output=$("$SCRIPT_DIR/git-remote-gcrypt" clean "gcrypt::$tempdir/valid.git" 2>&1)
 set +x
 assert_grep "garbage_file" "$output" "clean identified unencrypted file in valid repo"
-assert_grep "\.garbage_file" "$output" "clean identified unencrypted DOTFILE in valid repo"
+assert_grep "\.garbage (file)" "$output" "clean identified unencrypted DOTFILE in valid repo"
 assert_grep "NOTE: This is a scan" "$output" "clean scan-only mode confirmed"
 
 # 4. Clean Force
-"$SCRIPT_DIR/git-remote-gcrypt" clean "gcrypt::$tempdir/valid.git" --force >/dev/null 2>&1
+"$SCRIPT_DIR/git-remote-gcrypt" clean "gcrypt::$tempdir/valid.git" --force
 
 # Verify garbage_file is GONE from the GREF tree
 UPDATED_TREE=$($GIT rev-parse "$GREF^{tree}")

@@ -66,8 +66,9 @@ cd "${tempdir}/dirty-setup"
 git init
 git remote add origin "${tempdir}/remote-repo"
 echo "API_KEY=12345-SUPER-SECRET" >.env
-git add .env
+git add -f .env
 git commit -m "Oops, pushed secret keys"
+LEAK_SHA=$(git rev-parse master)
 git push origin master
 
 print_info "Step 3: Switch to git-remote-gcrypt usage"
@@ -106,14 +107,17 @@ print_info "Step 4: Verify LEAKAGE"
 # But we know it persists.
 cd "${tempdir}/remote-repo"
 
-if git ls-tree -r master | grep -q ".env"; then
-	print_warn "PRIVACY LEAK DETECTED: .env file matches found in remote!"
-	print_warn "Content of .env in remote:"
-	git show master:.env
-	print_success "Test Passed: Vulnerability successfully reproduced."
+if git cat-file -e "$LEAK_SHA"; then
+	print_warn "PRIVACY LEAK DETECTED: Leaked commit $LEAK_SHA still exists in remote objects!"
+	if git cat-file -p "$LEAK_SHA:.env" >/dev/null; then
+		print_warn "Content of .env is reachable."
+		print_success "Test Passed: Vulnerability successfully reproduced."
+	else
+		print_err "Commit exists but .env unreadable?"
+		exit 1
+	fi
 else
-	print_err "Unexpected: .env file NOT found. Did gcrypt overwrite it?"
-	# detecting it is 'failure' of the vulnerability check, but 'success' for privacy
+	print_err "Unexpected: Leaked commit NOT found. Did gcrypt prune it?"
 	exit 1
 fi
 
