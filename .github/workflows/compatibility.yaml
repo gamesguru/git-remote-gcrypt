@@ -9,16 +9,22 @@ on:
 jobs:
   # Validate 3 versions of git
   git:
-    name: Git Compatibility (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-
+    name: Git / GnuPG Compatibility
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.image }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-latest]
+        image: [ubuntu:20.04, ubuntu:22.04, ubuntu:24.04]
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Tool versions (check)
+        run: |
+          gpg --version
+          git --version
 
       - name: Install dependencies
         run: |
@@ -36,8 +42,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Show git version
-        run: git --version
+      - name: Tool versions (check)
+        run: |
+          bash --version
+          zsh --version
+          fish --version
 
       - name: Install Shells
         run: |

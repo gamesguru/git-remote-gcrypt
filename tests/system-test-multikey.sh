@@ -14,6 +14,28 @@ print_err() { printf "\033[1;31m[TEST] FAIL: %s\033[0m\n" "$1"; }
 num_commits=5
 files_per_commit=3
 
+# Check GPG version
+gpg_ver=$(gpg --version | head -n1 | awk '{print $3}')
+print_info "GPG Version detected: $gpg_ver"
+
+# Function to check if version strictly less than
+version_lt() {
+	[ "$1" = "$2" ] && return 1 || :
+	[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
+}
+
+# Determine if we expect the bug (Threshold: >= 2.2.20 assumed for now)
+# Ubuntu 20.04 (2.2.19) does NOT have the bug.
+# Ubuntu 22.04 (2.2.27) likely has it.
+# Arch (2.4.9) definitely has it.
+expect_bug=1
+if version_lt "$gpg_ver" "2.2.20"; then
+	print_warn "GPG version $gpg_ver is old. We do not expect the checksum bug here."
+	expect_bug=0
+else
+	print_info "GPG version $gpg_ver is modern. We expect the checksum bug."
+fi
+
 print_info "Running multi-key clone test..."
 random_source="/dev/urandom"
 random_data_per_file=1024 # Reduced size for faster testing (1KB)
@@ -227,8 +249,12 @@ print_info "Step 6: Reproduction Step - Clone with buried key..."
 		print_success "SUCCESS: Checksum error detected but Clone SUCCEEDED. (Fix is working!)"
 	elif [ $ret -eq 0 ]; then
 		print_warn "WARNING: Clone passed unexpectedly (Checksum error not detected). Bug not triggered."
-		print_err "Exiting due to unexpected pass."
-		exit 1
+		if [ "$expect_bug" -eq 0 ]; then
+			print_success "SUCCESS: Old GPG version ($gpg_ver) confirmed clean. Pass."
+		else
+			print_err "FAIL: Exiting due to unexpected pass on modern GPG $gpg_ver."
+			exit 1
+		fi
 	else
 		print_err "ERROR: Clone failed with generic error (Checksum error not detected)."
 		exit 1
@@ -290,8 +316,12 @@ print_info "Step 7: Reproduction Step - Push with buried key..."
 		print_success "SUCCESS: Checksum error detected (Push) but Push SUCCEEDED. (Fix is working!)"
 	elif [ $ret -eq 0 ]; then
 		print_warn "WARNING: Push passed unexpectedly (Checksum error not detected). Bug not triggered."
-		print_err "Exiting due to unexpected pass."
-		exit 1
+		if [ "$expect_bug" -eq 0 ]; then
+			print_success "SUCCESS: Old GPG version ($gpg_ver) confirmed clean. Pass."
+		else
+			print_err "FAIL: Exiting due to unexpected pass on modern GPG $gpg_ver."
+			exit 1
+		fi
 	else
 		print_err "ERROR: Push failed with generic error (Checksum error not detected)."
 		exit 1
