@@ -164,7 +164,8 @@ sed "s/{commands}/$COMMANDS_LIST/" "$ZSH_TMPL" \
 echo "Generating Fish completions..."
 # Fish needs {not_sc_list} which matches {commands} (space separated)
 # Use awk for safe replacement of multi-line string
-awk -v cmds="$COMMANDS_LIST" -v flags="$CLEAN_FLAGS_FISH" '
+CLEAN_FLAGS_FISH="$CLEAN_FLAGS_FISH" awk -v cmds="$COMMANDS_LIST" '
+	BEGIN { flags=ENVIRON["CLEAN_FLAGS_FISH"] }
 	{
 		gsub(/{not_sc_list}/, cmds)
 		gsub(/{clean_flags_fish}/, flags)
