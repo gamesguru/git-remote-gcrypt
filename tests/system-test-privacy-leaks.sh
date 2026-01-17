@@ -14,7 +14,7 @@ readonly tempdir
 trap 'rm -Rf -- "$tempdir"' EXIT
 
 # Ensure git-remote-gcrypt is in PATH
-repo_root=$(git rev-parse --show-toplevel)
+repo_root="${PWD}"
 test_version=$(git describe --tags --always --dirty 2>/dev/null || echo "test")
 cp "$repo_root/git-remote-gcrypt" "$tempdir/git-remote-gcrypt"
 sed "s/@@DEV_VERSION@@/$test_version/" "$tempdir/git-remote-gcrypt" >"$tempdir/git-remote-gcrypt.tmp"
