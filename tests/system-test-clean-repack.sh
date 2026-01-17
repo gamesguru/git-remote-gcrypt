@@ -131,6 +131,8 @@ git config user.email "test@test.com"
 git config user.name "Test User"
 git commit -m "Inject unencrypted garbage"
 git push origin master
+HEAD_SHA=$(git rev-parse HEAD)
+echo "Backend SHA before clean: $HEAD_SHA"
 
 # Verify garbage exists
 cd "$REPO_DIR"

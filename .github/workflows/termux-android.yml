@@ -34,8 +34,8 @@ jobs:
             -w /data \
             --entrypoint /system/bin/sh \
             termux/termux-docker:latest \
-            -c "export PATH=/data/data/com.termux/files/usr/bin:$PATH; \
-              pkg update && pkg install -y git make \
-              && make install
-              && make check/install
+            -c "export PATH=/data/data/com.termux/files/usr/bin:$PATH; \\
+              pkg update && pkg install -y git make \\
+              && make install \\
+              && make check/install \\
               && git-remote-gcrypt --version"
