@@ -48,7 +48,7 @@ Options:
   clean [URL|REMOTE] Scan/Clean unencrypted files from remote
     clean -f, --force    Actually delete files (default is scan only)
     clean -i, --init     Scan even if no manifest found (DANGEROUS with --force)
-
+  stat [URL|REMOTE] Show diagnostics (file counts, tracked vs untracked)
 Git Protocol Commands (for debugging):
   capabilities     List remote helper capabilities
   list             List refs in remote repository
@@ -101,6 +101,19 @@ while [ $# -gt 0 ]; do
 				shift
 			done
 			break # Stop parsing outer loop
+			;;
+		stat)
+			NAME=gcrypt-stat
+			shift
+			if [ $# -gt 0 ]; then
+				if [ -z "$URL" ]; then
+					URL="$1"
+				else
+					echo "Error: Multiple URLs/remotes provided to stat" >&2
+					exit 1
+				fi
+				shift
+			fi
 			;;
 		-*)
 			echo "Unknown option: $1" >&2
@@ -1510,6 +1523,54 @@ cmd_clean()
 	exit 0
 }
 
+cmd_stat()
+{
+	local remote_files="" file_count=0 tracked_count=0 untracked_count=0 valid_files="" f=""
+	
+	if ! ensure_connected; then
+		echo_die "Could not connect to $URL."
+	fi
+	
+	get_remote_file_list @remote_files || echo_die "Failed to list remote files."
+	file_count=$(line_count "$remote_files")
+	if isnull "$remote_files"; then
+		file_count=0
+	fi
+	
+	echo "Remote: $URL"
+	echo "Total files: $file_count"
+	
+	if [ "$Did_find_repo" = "yes" ]; then
+		echo "Gcrypt repository: detected"
+		echo "Manifest: found"
+		
+		# Build whitelist of valid gcrypt files to count tracked
+		valid_files="$Manifestfile"
+		for f in $(xecho "$Packlist" | cut -d: -f3 | cut -d' ' -f1); do
+			valid_files="$valid_files$Newline$f"
+		done
+		
+		tracked_count=0
+		for f in $remote_files; do
+			if xfeed "$valid_files" grep -qxF "$f"; then
+				tracked_count=$((tracked_count + 1))
+			fi
+		done
+		untracked_count=$((file_count - tracked_count))
+		
+		echo "Tracked files: $tracked_count"
+		echo "Untracked files: $untracked_count"
+	else
+		echo "Gcrypt repository: not detected (no manifest)"
+		echo "Tracked files: 0"
+		echo "Untracked files: $file_count"
+	fi
+	
+	CLEAN_FINAL "$URL"
+	git remote remove "$NAME" 2>/dev/null || true
+	exit 0
+}
+
 if [ "$NAME" = "gcrypt-check" ]; then
 	resolve_url check
 	echo_info "Checking remote: $URL"
@@ -1526,6 +1587,11 @@ elif [ "$NAME" = "gcrypt-clean" ]; then
 	echo_info "Checking remote: $URL"
 	setup
 	cmd_clean
+elif [ "$NAME" = "gcrypt-stat" ]; then
+	resolve_url stat
+	echo_info "Getting statistics for remote: $URL"
+	setup
+	cmd_stat
 elif [ "$1" = --version ] || [ "$1" = -v ]; then
 	echo "git-remote-gcrypt version $VERSION"
 	exit 0

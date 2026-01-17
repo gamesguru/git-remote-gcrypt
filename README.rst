@@ -62,7 +62,7 @@ Command Reference
       clean [URL|REMOTE] Scan/Clean unencrypted files from remote
         clean -f, --force    Actually delete files (default is scan only)
         clean -i, --init     Scan even if no manifest found (DANGEROUS with --force)
-    
+      stat [URL|REMOTE] Show diagnostics (file counts, tracked vs untracked)
     Git Protocol Commands (for debugging):
       capabilities     List remote helper capabilities
       list             List refs in remote repository

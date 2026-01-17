@@ -33,12 +33,12 @@ COMMANDS_HELP=$(echo "$RAW_HELP" | sed -n '/^Options:/,$p' | sed 's/^/    /')
 
 # 2. Parse Commands and Flags for Completions
 # Extract command names (first word after 2 spaces)
-COMMANDS_LIST=$(echo "$RAW_HELP" | awk '/^  [a-z]+ / {print $1}' | grep -vE "^(help|version)$" | sort | tr '\n' ' ' | sed 's/ $//')
+COMMANDS_LIST=$(echo "$RAW_HELP" | awk '/^  [a-z]+ / {print $1}' | grep -vE "^(help|version|capabilities|list|push|fetch)$" | sort | tr '\n' ' ' | sed 's/ $//')
 
 # Extract clean flags
 # Text: "    clean -f, --force    Actually delete files..."
 # We want: "-f --force -i --init" for Bash
-CLEAN_FLAGS_RAW=$(echo "$RAW_HELP" | grep "^    clean -" | awk -F'  ' '{print $2}' | sed 's/,//g')
+CLEAN_FLAGS_RAW=$(echo "$RAW_HELP" | grep "^    clean -" | awk '{print $2, $3}' | sed 's/,//g')
 CLEAN_FLAGS_BASH=$(echo "$CLEAN_FLAGS_RAW" | tr '\n' ' ' | sed 's/ $//')
 
 # For Zsh: we want simple list for now as per plan, user asked for dynamic but safe.
