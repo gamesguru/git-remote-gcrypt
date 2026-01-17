@@ -1,0 +1,114 @@
+---
+name: install
+
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: "Enable debug logging (GCRYPT_DEBUG=1)"
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: "0 0 * * 0" # Sunday at 12 AM
+
+permissions:
+  contents: read
+
+jobs:
+  # Handles Ubuntu and macOS
+  Unix:
+    runs-on: ${{ matrix.os }}
+
+    env:
+      GCRYPT_DEBUG: ${{ inputs.debug && '1' || '' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y git python3-docutils
+
+      - name: Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install coreutils python3 git docutils
+
+      - name: Help [make]
+        run: make
+
+      - name: Test Installer
+        run: bash ./tests/installer-test-logic.sh
+
+      - name: Install [make install]
+        run: sudo make install
+
+      - name: Verify [make check/install]
+        run: make check/install
+
+  # Handles RedHat (UBI Container)
+  RedHat:
+    runs-on: ubuntu-latest
+
+    env:
+      GCRYPT_DEBUG: ${{ inputs.debug && '1' || '' }}
+
+    container:
+      image: registry.access.redhat.com/ubi9/ubi:latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # dnf is slow in containers. We cache the dnf cache directory.
+      - name: Cache DNF
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/dnf
+          key: ${{ runner.os }}-ubi9-dnf-v1
+          restore-keys: |
+            ${{ runner.os }}-ubi9-dnf-
+
+      - name: Dependencies [redhat]
+        run: dnf install -y git python3-docutils make man-db
+
+      - name: Help [make]
+        run: make
+
+      - name: Test Installer
+        run: bash ./tests/installer-test-logic.sh
+
+      - name: Install [make install]
+        run: make install # container runs as sudo
+
+      - name: Verify [make check/install]
+        run: make check/install
+
+  # Handles Termux (Android shell)
+  termux-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fix permissions for Docker
+        run: chmod -R 777 .
+
+      - name: Run tests in Termux
+        run: |
+          docker run --rm \
+            -v "$PWD":/app \
+            -w /app \
+            termux/termux-docker:latest \
+            /system/bin/sh -c "export PATH=/data/data/com.termux/files/usr/bin:\$PATH; \
+            apt-get update && \
+            apt-get install -y git make bash python man && \
+            pip install docutils && \
+            make install && \
+            make check/install && \
+            git-remote-gcrypt --version"

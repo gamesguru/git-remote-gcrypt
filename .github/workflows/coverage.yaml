@@ -1,0 +1,60 @@
+---
+name: Coverage
+
+"on":
+  push:
+  schedule:
+    - cron: "0 0 * * 0" # Sunday at 12 AM
+
+jobs:
+  test-coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Cache kcov
+        id: cache-kcov
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/kcov
+          key: ${{ runner.os }}-kcov-v1
+
+      # python3-docutils enables rst2man
+      - name: Install kcov Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils-dev build-essential cmake git \
+          libssl-dev libcurl4-openssl-dev libelf-dev libdw-dev \
+          libiberty-dev zlib1g-dev libstdc++-12-dev \
+          python3-docutils
+
+      # Build & install kcov (on cache miss)
+      - name: Build and Install kcov
+        if: steps.cache-kcov.outputs.cache-hit != 'true'
+        run: |
+          git clone --branch v42 --depth 1 https://github.com/SimonKagstrom/kcov.git
+          cd kcov
+          mkdir build && cd build
+          cmake ..
+          make -j$(nproc)
+          sudo make install
+
+      - name: Check kcov installation
+        run: |
+          ls -l /usr/local/bin/kcov || echo "Kcov not found!"
+          kcov --version
+
+      - name: Test Installer [make test/installer]
+        run: make test/installer
+
+      - name: Test System [make test/system]
+        run: make test/system
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # Path changed to match your Makefile's COV_ROOT (.coverage)
+          directory: ./.coverage

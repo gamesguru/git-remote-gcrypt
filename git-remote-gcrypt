@@ -30,6 +30,161 @@ Gref="refs/gcrypt/gitception$GITCEPTION"
 Gref_rbranch="refs/heads/master"
 Packkey_bytes=63  # nbr random bytes for packfile keys, any >= 256 bit is ok
 Hashtype=SHA256   # SHA512 SHA384 SHA256 SHA224 supported.
+VERSION="@@DEV_VERSION@@"
+
+
+# Help function
+HELP_TEXT="git-remote-gcrypt version $VERSION
+GPG-encrypted git remote helper
+
+Usage: Automatically invoked by git when using gcrypt:: URLs
+       See: man git-remote-gcrypt
+       Or:  https://github.com/spwhitton/git-remote-gcrypt
+
+Options:
+  help             Show this help message
+  version          Show version information
+  check [URL]      Check if URL is a gcrypt repository
+  clean [URL|REMOTE] Scan/Clean unencrypted files from remote
+    clean --force        Actually delete files (default is scan only)
+    clean --init         Allow cleaning uninitialized repos (requires --force)
+    clean --hard         Override safety checks (requires --force)
+  stat [URL|REMOTE] Show diagnostics (file counts, tracked vs untracked)
+Git Protocol Commands (for debugging):
+  capabilities     List remote helper capabilities
+  list             List refs in remote repository
+  push <refspec>   Push refs to remote repository
+  fetch <sha> <ref> Fetch refs from remote repository
+
+Environment Variables:
+  GCRYPT_DEBUG=1        Enable verbose debug logging to stderr
+  GCRYPT_TRACE=1        Enable shell tracing (set -x) for rsync/curl commands
+  GCRYPT_FULL_REPACK=1  Force full repack when pushing"
+
+# Help function
+show_help() {
+	echo "$HELP_TEXT" >&2
+}
+
+# Parse arguments
+while [ $# -gt 0 ]; do
+	case "$1" in
+		help|--help|-h)
+			show_help
+			exit 0
+			;;
+		version|--version|-v)
+			echo "git-remote-gcrypt version $VERSION" >&2
+			exit 0
+			;;
+		check)
+			NAME=gcrypt-check
+			URL="$2"
+			shift
+			;;
+		clean)
+			NAME=gcrypt-clean
+			shift
+			while [ $# -gt 0 ]; do
+				case "$1" in
+					--force) FORCE_CLEAN=yes ;;
+					--hard) HARD_FORCE=yes ;;
+					--repack) DO_REPACK=yes ;;
+					--init) FORCE_INIT=yes ;;
+					-*) echo "Unknown option: $1" >&2; exit 1 ;;
+					*)
+						if [ -z "$URL" ]; then
+							URL="$1"
+						else
+							echo "Error: Multiple URLs/remotes provided to clean" >&2
+							exit 1
+						fi
+						;;
+				esac
+				shift
+			done
+			if [ -n "$HARD_FORCE" ] && [ -z "$FORCE_CLEAN" ]; then
+				echo "Error: --hard requires --force" >&2
+				exit 1
+			fi
+			break # Stop parsing outer loop
+			;;
+		stat)
+			NAME=gcrypt-stat
+			shift
+			if [ $# -gt 0 ]; then
+				if [ -z "$URL" ]; then
+					URL="$1"
+				else
+					echo "Error: Multiple URLs/remotes provided to stat" >&2
+					exit 1
+				fi
+				shift
+			fi
+			;;
+		-*)
+			echo "Unknown option: $1" >&2
+			exit 1
+			;;
+		*)
+			break
+			;;
+	esac
+done
+
+# If NAME is not set, we might be invoked as a remote helper
+if [ -z "$NAME" ]; then
+	# We are likely running as "git-remote-gcrypt <remote> <url>"
+	# This case is handled by gcrypt_main_loop "$@" at the bottom if flags/commands were not matched
+	:
+fi
+case "${1:-}" in
+	capabilities)
+		if [ "${2:-}" = "-h" ] || [ "${2:-}" = "--help" ]; then
+			cat >&2 <<EOF
+capabilities - List git remote helper capabilities
+
+Usage: echo "capabilities" | git-remote-gcrypt <remote-url>
+       Invoked by git to query what operations this helper supports.
+EOF
+			exit 0
+		fi
+		;;
+	list)
+		if [ "${2:-}" = "-h" ] || [ "${2:-}" = "--help" ]; then
+			cat >&2 <<EOF
+list - List refs in remote repository
+
+Usage: echo "list" | git-remote-gcrypt <remote-url>
+       Invoked by git to list available refs (branches/tags).
+EOF
+			exit 0
+		fi
+		;;
+	push)
+		if [ "${2:-}" = "-h" ] || [ "${2:-}" = "--help" ]; then
+			cat >&2 <<EOF
+push - Push refs to remote repository
+
+Usage: echo "push <src>:<dst>" | git-remote-gcrypt <remote-url>
+       Invoked by git to push local refs to the remote.
+EOF
+			exit 0
+		fi
+		;;
+	fetch)
+		if [ "${2:-}" = "-h" ] || [ "${2:-}" = "--help" ]; then
+			cat >&2 <<EOF
+fetch - Fetch refs from remote repository
+
+Usage: echo "fetch <sha> <ref>" | git-remote-gcrypt <remote-url>
+       Invoked by git to fetch objects from the remote.
+EOF
+			exit 0
+		fi
+		;;
+esac
+
 Manifestfile=91bd0c092128cf2e60e1a608c31e92caf1f9c1595f83f2890ef17c0e4881aa0a
 Hex40="[a-f0-9]"
 Hex40=$Hex40$Hex40$Hex40$Hex40$Hex40$Hex40$Hex40$Hex40
@@ -53,7 +208,7 @@ Recipients=
 # xfeed: The most basic output function puts $1 into the stdin of $2..$#
 xfeed()
 {
-	local input_=
+	local input_=""
 	input_=$1; shift
 	"$@" <<EOF
 $input_
@@ -64,6 +219,11 @@ xecho_n() { xecho "$@" | tr -d \\n ; } # kill newlines
 echo_git() { xecho "$@" ; }  # Code clarity
 echo_info() { xecho "gcrypt:" "$@" >&2; }
 echo_die() { echo_info "$@" ; exit 1; }
+print_debug() {
+	if [ -n "${GCRYPT_DEBUG:-}" ]; then
+		echo_info "DEBUG:" "$@"
+	fi
+}
 
 isnull() { case "$1" in "") return 0;; *) return 1;; esac; }
 isnonnull() { ! isnull "$1"; }
@@ -77,10 +237,45 @@ pipefail()
 	"$@" || { echo_info "'$1' failed!"; kill $$; exit 1; }
 }
 
-isurl() { isnull "${2%%$1://*}"; }
+isurl() { isnull "${2%%"$1"://*}"; }
 islocalrepo() { isnull "${1##/*}" && [ ! -e "$1/HEAD" ]; }
 
 xgrep() { command grep "$@" || : ; }
+
+
+
+# Resolve URL or remote name, or list remotes if empty
+resolve_url() {
+	local cmd="$1"
+	if [ -z "$URL" ]; then
+		local remotes
+		remotes=$(git remote -v | awk '{print $1 "  " $2}' | sort -u || :)
+		echo "Usage: git-remote-gcrypt $cmd [URL|REMOTE]" >&2
+		if [ -n "$remotes" ]; then
+			echo "No URL or remote specified. Available remotes:" >&2
+			echo "$remotes" | sed 's/^/  /' >&2
+			exit 0
+		else
+			echo "Error: No remotes found and no URL/remote specified." >&2
+			exit 1
+		fi
+	fi
+
+	# If it's not a URL, try to resolve as a remote name
+	if ! echo "$URL" | grep -q -E '://|::' || [ -n "${URL##*/*}" ]; then
+		local potential_url
+		potential_url=$(git config --get "remote.$URL.url" || :)
+		if [ -n "$potential_url" ]; then
+			# Don't clean non-gcrypt remotes!
+			if ! echo "$potential_url" | grep -q '^gcrypt::'; then
+				echo_die "Error: Remote '$URL' is not a gcrypt:: remote."
+			fi
+			print_debug "Resolved remote '$URL' to '$potential_url'"
+			URL="$potential_url"
+		fi
+	fi
+	URL="${URL#gcrypt::}"
+}
 
 # setvar is used for named return variables
 # $1 *must* be a valid variable name, $2 is any value
@@ -92,7 +287,7 @@ xgrep() { command grep "$@" || : ; }
 setvar()
 {
 	isnull "${1##@*}" || echo_die "Missing @ for return variable: $1"
-	eval ${1#@}=\$2
+	eval "${1#@}"=\$2
 }
 
 Newline="
@@ -101,8 +296,8 @@ Newline="
 # $1 is return var, $2 is value appended with newline separator
 append_to()
 {
-	local f_append_tmp_=
-	eval f_append_tmp_=\$${1#@}
+	local f_append_tmp_=""
+	eval f_append_tmp_=\$"${1#@}"
 	isnull "$f_append_tmp_" || f_append_tmp_=$f_append_tmp_$Newline
 	setvar "$1" "$f_append_tmp_$2"
 }
@@ -112,14 +307,14 @@ append_to()
 # $2 input value
 pick_fields_1_2()
 {
-	local f_ret= f_one= f_two=
-	while read f_one f_two _ # from << here-document
+	local f_ret="" f_one="" f_two=""
+	while read -r f_one f_two _ # from << here-document
 	do
 		f_ret="$f_ret$f_one $f_two$Newline"
 	done <<EOF
 $2
 EOF
-	setvar "$1" "${f_ret#$Newline}"
+	setvar "$1" "${f_ret#"$Newline"}"
 }
 
 # Take all lines matching $2 (full line)
@@ -130,21 +325,23 @@ EOF
 #  we instead remove all lines matching
 filter_to()
 {
-	local f_neg= f_line= f_ret= IFS=
+	local f_neg="" f_line="" f_ret="" IFS=""
 	isnoteq "$1" "!" || { f_neg=negate; shift; }
 	IFS=$Newline
 	for f_line in $3
 	do
+		# shellcheck disable=SC2295
 		$f_neg isnonnull "${f_line##$2}" || f_ret=$f_ret$f_line$Newline
 	done
-	setvar "$1" "${f_ret%$Newline}"
+	setvar "$1" "${f_ret%"$Newline"}"
 }
 
 # Output the number of lines in $1
 line_count()
 {
-	local IFS=
+	local IFS=""
 	IFS=$Newline
+	# shellcheck disable=SC2086
 	set -- $1
 	xecho "$#"
 }
@@ -161,13 +358,23 @@ rsynclocation ()
 gitception_get()
 {
 	# Take care to preserve FETCH_HEAD
-	local ret_=: obj_id= fet_head="$GIT_DIR/FETCH_HEAD"
-	[ -e "$fet_head" ] && command mv -f "$fet_head" "$fet_head.$$~" || :
-	git fetch -q -f "$1" "$Gref_rbranch:$Gref" >/dev/null &&
-		obj_id="$(git ls-tree "$Gref" | xgrep -E '\b'"$2"'$' | awk '{print $3}')" &&
-		isnonnull "$obj_id" && git cat-file blob "$obj_id" && ret_=: ||
-		{ ret_=false && : ; }
-	[ -e "$fet_head.$$~" ] && command mv -f "$fet_head.$$~" "$fet_head" || :
+	local ret_=: obj_id="" fet_head="$GIT_DIR/FETCH_HEAD"
+	if [ -e "$fet_head" ]; then
+		command mv -f "$fet_head" "$fet_head.$$~" || :
+	fi
+	if git fetch -q -f "$1" "$Gref_rbranch:$Gref-fetch" >/dev/null; then
+		obj_id="$(git ls-tree "$Gref-fetch" | xgrep -E '\b'"$2"'$' | awk '{print $3}')"
+		if isnonnull "$obj_id" && git cat-file blob "$obj_id"; then
+			ret_=:
+		else
+			ret_=false
+		fi
+	else
+		ret_=false
+	fi
+	if [ -e "$fet_head.$$~" ]; then
+		command mv -f "$fet_head.$$~" "$fet_head" || :
+	fi
 	$ret_
 }
 
@@ -188,7 +395,7 @@ update_tree()
 	local tab_="	"
 	# $2 is a filename from the repo format
 	(set +e;
-		git ls-tree "$1" | xgrep -v -E '\b'"$2"'$';
+		git -c core.quotePath=false ls-tree "$1" | awk -F'\t' -v f="$2" '$2 != f'
 		xecho "100644 blob $3$tab_$2"
 	) | git mktree
 }
@@ -197,7 +404,7 @@ update_tree()
 # depends on previous GET to set $Gref and depends on PUT_FINAL later
 gitception_put()
 {
-	local obj_id= tree_id= commit_id=
+	local obj_id="" tree_id="" commit_id=""
 	obj_id=$(git hash-object -w --stdin) &&
 		tree_id=$(update_tree "$Gref" "$2" "$obj_id") &&
 		commit_id=$(anon_commit "$tree_id") &&
@@ -208,19 +415,49 @@ gitception_put()
 # depends on previous GET like put
 gitception_remove()
 {
-	local tree_id= commit_id= tab_="	"
-	# $2 is a filename from the repo format
-	tree_id=$(git ls-tree "$Gref" | xgrep -v -E '\b'"$2"'$' | git mktree) &&
-		commit_id=$(anon_commit "$tree_id") &&
-		git update-ref "$Gref" "$commit_id"
+	local tree_id="" commit_id="" temp_index=""
+	temp_index=$(mktemp)
+	
+	# Use temporary index to cleanly remove file (handles recursion)
+	(
+		export GIT_INDEX_FILE="$temp_index"
+		git read-tree "$Gref"
+		if [ -n "$HARD_FORCE" ]; then
+			git rm --cached --ignore-unmatch -q -f "$2"
+		else
+			if ! git rm --cached --ignore-unmatch -q "$2"; then
+				echo_info "Error: Failed to remove '$2' because it has local modifications."
+
+				# Hints for the user as requested
+				echo_info "Hints:"
+				echo_info "  1. To see all files with status differences:  git status"
+
+				suggest_args="--force --hard"
+				if [ "${FORCE_INIT:-}" = "yes" ]; then
+					suggest_args="--init $suggest_args"
+				fi
+				echo_info "  2. To force clean the remote via tool:        git-remote-gcrypt clean $suggest_args $URL"
+
+				exit 1
+			fi
+		fi
+		tree_id=$(git write-tree)
+		if [ "$tree_id" != "$(git rev-parse "$Gref^{tree}")" ]; then
+			commit_id=$(anon_commit "$tree_id") &&
+			git update-ref "$Gref" "$commit_id"
+		fi
+	)
+	rm -f "$temp_index"
 }
 
 gitception_new_repo()
 {
-	local commit_id= empty_tree=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+	local commit_id="" empty_tree=4b825dc642cb6eb9a060e54bf8d69288fbee4904
 	# get any file to update Gref, and if it's not updated we create empty
 	git update-ref -d "$Gref" || :
-	gitception_get "$1" "x" 2>/dev/null >&2 || :
+	if gitception_get "$1" "x" 2>/dev/null >&2; then
+		git update-ref "$Gref" "$Gref-fetch"
+	fi
 	git rev-parse -q --verify "$Gref" >/dev/null && return 0 ||
 		commit_id=$(anon_commit "$empty_tree") &&
 		git update-ref "$Gref" "$commit_id"
@@ -230,15 +467,21 @@ gitception_new_repo()
 # Fetch repo $1, file $2, tmpfile in $3
 GET()
 {
+	print_debug "GET $1 $2 $3"
 	if isurl sftp "$1"
 	then
-		(exec 0>&-; curl -s -S -k "$1/$2") > "$3"
+		(exec 0</dev/null; curl -s -S -k "$1/$2") > "$3"
 	elif isurl rsync "$1"
 	then
-		(exec 0>&-; rsync -I -W "$(rsynclocation "$1")"/"$2" "$3" >&2)
+		print_debug "Calling rsync..."
+		(
+			if [ -n "${GCRYPT_TRACE:-}" ]; then set -x; fi
+			exec 0</dev/null
+			rsync -I -W "$(rsynclocation "$1")"/"$2" "$3" >&2
+		)
 	elif isurl rclone "$1"
 	then
-		(exec 0>&-; rclone copyto --error-on-no-transfer "${1#rclone://}"/"$2" "$3" >&2)
+		(exec 0</dev/null; rclone copyto --error-on-no-transfer "${1#rclone://}"/"$2" "$3" >&2)
 	elif islocalrepo "$1"
 	then
 		cat "$1/$2" > "$3"
@@ -250,12 +493,19 @@ GET()
 # Put repo $1, file $2 or fail, tmpfile in $3
 PUT()
 {
+	print_debug "PUT $1 $2 $3"
 	if isurl sftp "$1"
 	then
 		curl -s -S -k --ftp-create-dirs -T "$3" "$1/$2"
 	elif isurl rsync "$1"
 	then
-		rsync $Conf_rsync_put_flags -I -W "$3" "$(rsynclocation "$1")"/"$2" >&2
+		print_debug "Calling rsync..."
+		(
+			if [ -n "${GCRYPT_TRACE:-}" ]; then set -x; fi
+			exec 0</dev/null
+			# shellcheck disable=SC2086
+			rsync $Conf_rsync_put_flags -I -W "$3" "$(rsynclocation "$1")"/"$2" >&2
+		)
 	elif isurl rclone "$1"
 	then
 		rclone copyto --error-on-no-transfer "$3" "${1#rclone://}"/"$2" >&2
@@ -281,13 +531,20 @@ PUT_FINAL()
 # Put directory for repo $1
 PUTREPO()
 {
+	print_debug "PUTREPO $1"
 	if isurl sftp "$1"
 	then
 		:
 	elif isurl rsync "$1"
 	then
-		rsync $Conf_rsync_put_flags -q -r --exclude='*' \
+		print_debug "Calling rsync..."
+		(
+			if [ -n "${GCRYPT_TRACE:-}" ]; then set -x; fi
+			exec 0</dev/null
+			# shellcheck disable=SC2086
+			rsync $Conf_rsync_put_flags -q -r --exclude='*' \
 			"$Localdir/" "$(rsynclocation "$1")" >&2
+		)
 	elif isurl rclone "$1"
 	then
 		rclone mkdir "${1#rclone://}" >&2
@@ -302,29 +559,48 @@ PUTREPO()
 # For repo $1, delete all newline-separated files in $2
 REMOVE()
 {
-	local fn_=
+	local fn_=""
+	print_debug "REMOVE $1 $2"
 	if isurl sftp "$1"
 	then
 		# FIXME
 		echo_info "sftp: Ignore remove request $1/$2"
 	elif isurl rsync "$1"
 	then
-		xfeed "$2" rsync -I -W -v -r --delete --include-from=- \
+		print_debug "Calling rsync..."
+		(
+			if [ -n "${GCRYPT_TRACE:-}" ]; then set -x; fi
+			# rsync needs parent directories included or it won't traverse them
+			echo "$2" | while IFS= read -r f; do
+				d=$(dirname "$f")
+				mkdir -p "$Localdir/$d"
+			done
+
+			# rsync needs stdin for --include-from=-
+			# We include specific files ($2), then include ALL directories (*/), then exclude everything else (*).
+			rsync -I -W -v -r --delete --include-from=- --include='*/' \
 			--exclude='*' "$Localdir"/ "$(rsynclocation "$1")/" >&2
+		) <<EOF
+$2
+EOF
 	elif isurl rclone "$1"
 	then
 		xfeed "$2" rclone delete -v --include-from=/dev/stdin "${1#rclone://}/" >&2
 	elif islocalrepo "$1"
 	then
-		for fn_ in $2; do
+		echo "$2" | while IFS= read -r fn_; do
 			rm -f "$1"/"$fn_"
 		done
 	else
-		for fn_ in $2; do
+		# gitception handling
+		echo "$2" | while IFS= read -r fn_; do
 			gitception_remove "${1#gitception://}" "$fn_"
 		done
 	fi
 }
+
+REMOTE_REMOVE() { REMOVE "$@"; } # Alias if needed/used? No, just ensuring clean block.
+
 
 CLEAN_FINAL()
 {
@@ -354,6 +630,7 @@ EOF
 # Encrypt to recipients $1
 PRIVENCRYPT()
 {
+	# shellcheck disable=SC2086
 	set -- $1
 	if isnonnull "$Conf_signkey"; then
 		set -- "$@" -u "$Conf_signkey"
@@ -364,15 +641,33 @@ PRIVENCRYPT()
 # $1 is the match for good signature, $2 is the textual signers list
 PRIVDECRYPT()
 {
-	local status_=
+	local status_="" signer_=""
 	exec 4>&1 &&
-	status_=$(rungpg --status-fd 3 -q -d 3>&1 1>&4) &&
+	status_=$(rungpg --status-fd 3 -q -d 3>&1 1>&4 || {
+		rc=$?
+		print_debug "rungpg failed with exit code $rc"
+		echo_info "ignoring GPG errors (likely anonymous recipient OR pinentry)."
+	}) &&
+	print_debug "status_ output:"
+	if [ -n "${GCRYPT_DEBUG:-}" ]; then
+		xfeed "$status_" grep "^\[GNUPG:\] " >&2
+	fi
+	print_debug "Checking regex: $1"
 	xfeed "$status_" grep "^\[GNUPG:\] ENC_TO " >/dev/null &&
 	(xfeed "$status_" grep -e "$1" >/dev/null || {
 		echo_info "Failed to verify manifest signature!" &&
 		echo_info "Only accepting signatories: ${2:-(none)}" &&
+		echo_info "To accept any signature from your keyring, try:" &&
+		echo_info "  git config --unset gcrypt.participants" &&
+		echo_info "  # or: git config gcrypt.participants simple" &&
 		return 1
 	})
+
+	# Extract signer
+	signer_=$(xfeed "$status_" grep "^\[GNUPG:\] GOODSIG " | cut -d ' ' -f 3)
+	if isnonnull "$signer_"; then
+		echo_info "Decrypting manifest signed with $signer_"
+	fi
 }
 
 # Generate $1 random bytes
@@ -383,7 +678,7 @@ genkey()
 
 gpg_hash()
 {
-	local hash_=
+	local hash_=""
 	hash_=$(rungpg --with-colons --print-md "$1" | tr A-F a-f)
 	hash_=${hash_#:*:}
 	xecho "${hash_%:}"
@@ -392,15 +687,16 @@ gpg_hash()
 rungpg()
 {
 	if isnonnull "$Conf_gpg_args"; then
-		set -- "$Conf_gpg_args" "$@"
+		# shellcheck disable=SC2086
+		set -- $Conf_gpg_args "$@"
 	fi
 	# gpg will fail to run when there is no controlling tty,
 	# due to trying to print messages to it, even if a gpg agent is set
 	# up. --no-tty fixes this.
-	if [ "x$GPG_AGENT_INFO" != "x" ]; then
-		${GPG} --no-tty $@
+	if [ "${GPG_AGENT_INFO:-}" != "" ]; then
+		${GPG} --no-tty "$@"
 	else
-		${GPG} $@
+		${GPG} "$@"
 	fi
 }
 
@@ -421,14 +717,15 @@ make_new_repo()
 	iseq "${NAME#gcrypt::}" "$URL" ||
 		git config "remote.$NAME.gcrypt-id" "$Repoid"
 	echo_info "Remote ID is $Repoid"
-	Extnlist="extn comment"
+	Extnlist="extn gcrypt-version $VERSION"
 }
 
 
 # $1 return var for goodsig match, $2 return var for signers text
 read_config()
 {
-	local recp_= r_tail= r_keyinfo= r_keyfpr= gpg_list= cap_= conf_part= good_sig= signers_=
+	# shellcheck disable=SC2034
+	local recp_="" r_tail="" r_keyinfo="" r_keyfpr="" gpg_list="" cap_="" conf_part="" good_sig="" signers_=""
 	Conf_signkey=$(git config --get "remote.$NAME.gcrypt-signingkey" '.+' ||
 		git config --path user.signingkey || :)
 	conf_part=$(git config --get "remote.$NAME.gcrypt-participants" '.+' ||
@@ -470,13 +767,14 @@ read_config()
 		r_keyfpr=${r_keyfpr%%"$Newline"*}
 		keyid_=$(xfeed "$r_keyinfo" cut -f 5 -d :)
 		fprid_=$(xfeed "$r_keyfpr" cut -f 10 -d :)
-
-		isnonnull "$fprid_" &&
-		signers_="$signers_ $keyid_" &&
-		append_to @good_sig "^\[GNUPG:\] VALIDSIG .*$fprid_$" || {
+		print_debug "Resolved participant $recp_ to fpr: $fprid_"
+		if isnonnull "$fprid_"; then
+			signers_="$signers_ $keyid_"
+			append_to @good_sig "^\[GNUPG:\] VALIDSIG .*$fprid_$"
+		else
 			echo_info "WARNING: Skipping missing key $recp_"
 			continue
-		}
+		fi
 		# Check 'E'ncrypt capability
 		cap_=$(xfeed "$r_keyinfo" cut -f 12 -d :)
 		if ! iseq "${cap_#*E}" "$cap_"; then
@@ -490,6 +788,9 @@ read_config()
 
 	if isnull "$Recipients"
 	then
+		if [ "$NAME" = "gcrypt-stat" ] || [ "$NAME" = "gcrypt-clean" ]; then
+			return 0
+		fi
 		echo_info "You have not configured any keys you can encrypt to" \
 			"for this repository"
 		echo_info "Use ::"
@@ -498,19 +799,94 @@ read_config()
 	fi
 	setvar "$1" "$good_sig"
 	setvar "$2" "$signers_"
+	print_debug "read_config done"
+}
+
+early_safety_check()
+{
+	local check_files="" early_bad_files=""
+
+	# EARLY SAFETY CHECK for gitception backends:
+	# Before GPG validation, check if the remote has unencrypted files.
+	if [ "$NAME" = "gcrypt-clean" ] || [ "$NAME" = "gcrypt-stat" ]; then
+		return 0
+	fi
+	# For dumb backends (rsync/sftp/rclone/local), check for ANY files.
+	if isurl sftp "$URL" || isurl rsync "$URL" || isurl rclone "$URL" || islocalrepo "$URL"; then
+		local dumb_files=""
+		get_remote_file_list @dumb_files
+		if isnull "$dumb_files"; then
+			return 0
+		fi
+
+		early_bad_files=$(echo "$dumb_files" | grep -v -E '^[a-f0-9]{56}$|^[a-f0-9]{64}$|^[a-f0-9]{96}$|^[a-f0-9]{128}$' || :)
+		if isnull "$early_bad_files"; then
+			return 0
+		fi
+
+
+		if [ "$(git config --bool remote."$NAME".gcrypt-allow-unencrypted-remote)" = "true" ] || \
+		   [ "$(git config --bool gcrypt.allow-unencrypted-remote)" = "true" ]; then
+			return 0
+		fi
+
+		echo_info "ERROR: Remote repository contains unencrypted or unknown files!"
+		echo_info "To protect your privacy, git-remote-gcrypt will NOT push to this remote."
+		echo_info "Found unexpected files: $(echo "$early_bad_files" | head -n 3 | tr '\n' ' ')"
+		echo_info "To see unencrypted files, use: git-remote-gcrypt clean $URL"
+		echo_info "To fix and remove these files, use: git-remote-gcrypt clean --force $URL"
+		exit 1
+	fi
+
+	git fetch --quiet "$URL" "refs/heads/master:refs/gcrypt/safety-check" 2>/dev/null ||
+	git fetch --quiet "$URL" "refs/heads/main:refs/gcrypt/safety-check" 2>/dev/null || true
+
+	if ! git rev-parse --verify "refs/gcrypt/safety-check" >/dev/null 2>&1; then
+		return 0
+	fi
+
+	check_files=$(git ls-tree --name-only "refs/gcrypt/safety-check" 2>/dev/null || :)
+	git update-ref -d "refs/gcrypt/safety-check" 2>/dev/null || true
+
+	if isnull "$check_files"; then
+		return 0
+	fi
+
+	early_bad_files=$(echo "$check_files" | grep -v -E '^[a-f0-9]{56}$|^[a-f0-9]{64}$|^[a-f0-9]{96}$|^[a-f0-9]{128}$' || :)
+	if isnull "$early_bad_files"; then
+		return 0
+	fi
+
+
+	if [ "$(git config --bool remote."$NAME".gcrypt-allow-unencrypted-remote)" = "true" ] || \
+	   [ "$(git config --bool gcrypt.allow-unencrypted-remote)" = "true" ]; then
+		return 0
+	fi
+
+	echo_info "ERROR: Remote repository contains unencrypted or unknown files!"
+	echo_info "To protect your privacy, git-remote-gcrypt will NOT push to this remote."
+	echo_info "Found unexpected files: $(echo "$early_bad_files" | head -n 3 | tr '\n' ' ')"
+	echo_info "To see unencrypted files, use: git-remote-gcrypt clean $URL"
+	echo_info "To fix and remove these files, use: git-remote-gcrypt clean --force $URL"
+	exit 1
 }
 
 ensure_connected()
 {
-	local manifest_= r_repoid= r_name= url_frag= r_sigmatch= r_signers= \
-		tmp_manifest= tmp_stderr=
+	local manifest_="" r_repoid="" r_name="" url_frag="" r_sigmatch="" r_signers="" \
+		tmp_manifest="" tmp_stderr="" early_bad_files=""
 
 	if isnonnull "$Did_find_repo"
 	then
 		return
 	fi
+
+	early_safety_check
+
 	Did_find_repo=no
+	print_debug "Calling read_config"
 	read_config @r_sigmatch @r_signers
+	print_debug "Back from read_config"
 
 	iseq "${NAME#gcrypt::}" "$URL" || r_name=$NAME
 
@@ -541,7 +917,11 @@ ensure_connected()
 
 	tmp_manifest="$Tempdir/maniF"
 	tmp_stderr="$Tempdir/stderr"
-	GET "$URL" "$Manifestfile" "$tmp_manifest" 2>| "$tmp_stderr" || {
+	print_debug "Getting manifest from $URL file $Manifestfile"
+	# GET "$URL" "$Manifestfile" "$tmp_manifest" 2>| "$tmp_stderr" || {
+    # Debugging: don't capture stderr, let it flow to console
+	git update-ref -d "$Gref-fetch" || :
+	GET "$URL" "$Manifestfile" "$tmp_manifest" || {
 		if ! isnull "$Repoid"; then
 			cat >&2 "$tmp_stderr"
 			echo_info "Repository not found: $URL"
@@ -553,11 +933,18 @@ ensure_connected()
 		fi
 	}
 
+	# gitception: populate Gref from fetch
+	if git rev-parse -q --verify "$Gref-fetch" >/dev/null; then
+		git update-ref "$Gref" "$Gref-fetch"
+	fi
+
 	Did_find_repo=yes
 	echo_info "Decrypting manifest"
-	manifest_=$(PRIVDECRYPT "$r_sigmatch" "$r_signers" < "$tmp_manifest") &&
-		isnonnull "$manifest_" ||
+	if ! manifest_=$(PRIVDECRYPT "$r_sigmatch" "$r_signers" < "$tmp_manifest") || \
+		isnull "$manifest_"
+	then
 		echo_die "Failed to decrypt manifest!"
+	fi
 	rm -f "$tmp_manifest"
 
 	filter_to @Refslist "$Hex40 *" "$manifest_"
@@ -565,6 +952,18 @@ ensure_connected()
 	filter_to @Keeplist "keep :*:*" "$manifest_"
 	filter_to @Extnlist "extn *" "$manifest_"
 	filter_to @r_repoid "repo *" "$manifest_"
+
+	# Check gcrypt version from manifest
+	filter_to @Manifest_version "extn gcrypt-version *" "$manifest_"
+	Manifest_version=${Manifest_version#extn gcrypt-version }
+	if isnonnull "$Manifest_version"
+	then
+		echo_info "Manifest encrypted with gcrypt $Manifest_version"
+		if isnoteq "$Manifest_version" "$VERSION"
+		then
+			echo_info "WARNING: You are running gcrypt $VERSION"
+		fi
+	fi
 
 	r_repoid=${r_repoid#repo }
 	r_repoid=${r_repoid% *}
@@ -592,11 +991,12 @@ ensure_connected()
 # $3 the key
 get_verify_decrypt_pack()
 {
-	local rcv_id= tmp_encrypted=
+	local rcv_id="" tmp_encrypted=""
 	tmp_encrypted="$Tempdir/packF"
 	GET "$URL" "$2" "$tmp_encrypted" &&
-	rcv_id=$(gpg_hash "$1" < "$tmp_encrypted") &&
-	iseq "$rcv_id" "$2" || echo_die "Packfile $2 does not match digest!"
+	if ! rcv_id=$(gpg_hash "$1" < "$tmp_encrypted") || isnoteq "$rcv_id" "$2"; then
+		echo_die "Packfile $2 does not match digest!"
+	fi
 	DECRYPT "$3" < "$tmp_encrypted"
 	rm -f "$tmp_encrypted"
 }
@@ -605,7 +1005,7 @@ get_verify_decrypt_pack()
 # $1 destdir (when repack, else "")
 get_pack_files()
 {
-	local pack_id= r_pack_key_line= htype_= pack_= key_=
+	local pack_id="" r_pack_key_line="" htype_="" pack_="" key_=""
 	while IFS=': ' read -r _ htype_ pack_ # <<here-document
 	do
 		isnonnull "$pack_" || continue
@@ -613,8 +1013,9 @@ get_pack_files()
 		# Get the Packlist line with the key
 		pack_id=":${htype_}:$pack_"
 		filter_to @r_pack_key_line "pack $pack_id *" "$Packlist"
-		key_=${r_pack_key_line#pack $pack_id }
+		key_=${r_pack_key_line#pack "$pack_id" }
 
+		# shellcheck disable=SC2295
 		if isnonnull "${pack_##$Hex40*}" ||
 			isnoteq "$htype_" SHA256 && isnoteq "$htype_" SHA224 &&
 			isnoteq "$htype_" SHA384 && isnoteq "$htype_" SHA512
@@ -638,7 +1039,7 @@ get_pack_files()
 # $1 return var for list of packfiles to delete
 repack_if_needed()
 {
-	local n_= m_= kline_= r_line= r_keep_packlist= r_del_list=
+	local n_="" m_="" kline_="" r_line="" r_keep_packlist="" r_del_list=""
 
 	isnonnull "$Packlist" || return 0
 
@@ -652,7 +1053,8 @@ repack_if_needed()
 
 	n_=$(line_count "$Packlist")
 	m_=$(line_count "$Keeplist")
-	if iseq 0 "$(( $Repack_limit < ($n_ - $m_) ))"; then
+	# shellcheck disable=SC2004
+	if iseq 0 "$(( Repack_limit < (n_ - m_) ))"; then
 		return
 	fi
 	echo_info "Repacking remote $NAME, ..."
@@ -690,10 +1092,10 @@ do_capabilities()
 
 do_list()
 {
-	local obj_id= ref_name= line_=
+	local obj_id="" ref_name="" line_=""
 	ensure_connected
 
-	xecho "$Refslist" | while read line_
+	xecho "$Refslist" | while read -r line_
 	do
 		isnonnull "$line_" || break
 		obj_id=${line_%% *}
@@ -712,7 +1114,7 @@ do_list()
 do_fetch()
 {
 	# Download packs in the manifest that don't appear in have_packs
-	local pneed_= premote_=
+	local pneed_="" premote_=""
 
 	ensure_connected
 
@@ -731,61 +1133,11 @@ do_fetch()
 }
 
 # do_push PUSHARGS (multiple lines like +src:dst, with both + and src opt.)
-do_push()
+# Perform repack, manifest generation, and upload
+# Requires: r_revlist, Tempdir, Packkey_bytes, Hashtype, Packlist, Keeplist, Recipients, Refslist, Repoid, Extnlist, URL, NAME, VERSION
+perform_repack()
 {
-	# Security protocol:
-	# Each git packfile is encrypted and then named for the encrypted
-	# file's hash. The manifest is updated with the pack id.
-	# The manifest is encrypted.
-	local r_revlist= pack_id= key_= obj_= src_= dst_= \
-		r_pack_delete= tmp_encrypted= tmp_objlist= tmp_manifest= \
-		force_passed=
-
-	ensure_connected
-
-	if iseq "$Did_find_repo" "no"
-	then
-		make_new_repo
-	fi
-
-	if isnonnull "$Refslist"
-	then
-		# mark all remote refs with  ^<sha-1> (if sha-1 exists locally)
-		r_revlist=$(xfeed "$Refslist" cut -f 1 -d ' ' |
-			safe_git_rev_parse | sed -e 's/^\(.\)/^&/')
-	fi
-
-	while IFS=: read -r src_ dst_ # << +src:dst
-	do
-		if [ $(echo "$src_" | cut -c1) != + ]
-		then
-			force_passed=false
-		fi
-
-		src_=${src_#+}
-		filter_to ! @Refslist "$Hex40 $dst_" "$Refslist"
-
-		if isnonnull "$src_"
-		then
-			append_to @r_revlist "$src_"
-			obj_=$(xfeed "$src_" safe_git_rev_parse)
-			append_to @Refslist "$obj_ $dst_"
-		fi
-	done <<EOF
-$1
-EOF
-
-	if [ "$force_passed" = false ]
-	then
-		if [ "$Conf_force_required" = true ]
-		then
-			echo_die "Implicit force push disallowed by gcrypt configuration."
-		else
-			echo_info "Due to a longstanding bug, this push implicitly has --force."
-			echo_info "Consider explicitly passing --force, and setting"
-			echo_info "gcrypt's require-explicit-force-push git config key."
-		fi
-	fi
+	local tmp_encrypted tmp_objlist tmp_manifest pack_id key_ r_pack_delete=""
 
 	tmp_encrypted="$Tempdir/packP"
 	tmp_objlist="$Tempdir/objlP"
@@ -799,7 +1151,7 @@ EOF
 	if [ -s "$tmp_objlist" ]
 	then
 		key_=$(genkey "$Packkey_bytes")
-		pack_id=$(export GIT_ALTERNATE_OBJECT_DIRECTORIES=$Tempdir;
+		pack_id=$(export GIT_ALTERNATE_OBJECT_DIRECTORIES="$Tempdir";
 			pipefail git pack-objects --stdout < "$tmp_objlist" |
 			pipefail ENCRYPT "$key_" |
 			tee "$tmp_encrypted" | gpg_hash "$Hashtype")
@@ -812,6 +1164,10 @@ EOF
 	fi
 
 	# Generate manifest
+	# Update the gcrypt version in extensions (remove old, add current)
+	filter_to ! @Extnlist "extn gcrypt-version *" "$Extnlist"
+	append_to @Extnlist "extn gcrypt-version $VERSION"
+
 	echo_info "Encrypting to: $Recipients"
 	echo_info "Requesting manifest signature"
 
@@ -846,6 +1202,160 @@ EOF
 				xecho "$pack_"
 			done)"
 	fi
+}
+
+do_push()
+{
+	# Security protocol:
+	# Each git packfile is encrypted and then named for the encrypted
+	# file's hash. The manifest is updated with the pack id.
+	# The manifest is encrypted.
+	local r_revlist="" pack_id="" key_="" obj_="" src_="" dst_="" \
+		r_pack_delete="" tmp_encrypted="" tmp_objlist="" tmp_manifest="" \
+		force_passed=true
+
+
+# Check if the backend repo has unencrypted files (safety check)
+check_safety()
+{
+	local bad_files="" remote_files="" valid_files="" f=""
+
+	# We want to check this for 'gitception' backends (git-over-git).
+	# Logic mirrors GET/PUT logic: if not sftp, rsync, rclone, or a Dumb Local Repo (islocalrepo),
+	# then it is a git repo (gitception or implicit).
+	if isurl sftp "$URL" || isurl rsync "$URL" || isurl rclone "$URL" || islocalrepo "$URL"; then
+		return 0
+	fi
+	
+	# Get all files in the remote
+	remote_files=$(git ls-tree --name-only "$Gref" 2>/dev/null || :)
+	
+	# If no files, nothing to check
+	isnonnull "$remote_files" || return 0
+	
+	# Build whitelist of valid gcrypt files
+	if iseq "$Did_find_repo" "yes"; then
+		# We found a gcrypt manifest, so we know what files are valid:
+		# 1. The manifest file itself
+		valid_files="$Manifestfile"
+		# 2. All packfiles listed in Packlist (extract hash from "pack :HASHTYPE:HASH key")
+		for f in $(xecho "$Packlist" | cut -d: -f3 | cut -d' ' -f1); do
+			valid_files="$valid_files$Newline$f"
+		done
+	else
+		# No gcrypt manifest found = fresh push.
+		# ANY file in the remote is suspicious (we're about to initialize gcrypt).
+		bad_files="$remote_files"
+	fi
+	
+	# If we have a whitelist, compare
+	if isnull "$bad_files" && isnonnull "$valid_files"; then
+		for f in $remote_files; do
+			if ! xfeed "$valid_files" grep -qxF "$f"; then
+				bad_files="$bad_files$Newline$f"
+			fi
+		done
+		bad_files="${bad_files#"$Newline"}"
+	fi
+	
+	if isnonnull "$bad_files"; then
+		echo_info "ERROR: Remote repository contains unencrypted or unknown files!"
+		echo_info "To protect your privacy, git-remote-gcrypt will NOT push to this remote."
+		echo_info "Found the following unexpected files:"
+		echo_info "$bad_files" | head -n 5 | sed 's/^/  /' >&2
+		if [ "$(line_count "$bad_files")" -gt 5 ]; then
+			echo_info "  ... (and others)"
+		fi
+
+		# Check config to see if we should ignore
+		if [ "$(git config --bool remote."$NAME".gcrypt-allow-unencrypted-remote)" = "true" ] || \
+		   [ "$(git config --bool gcrypt.allow-unencrypted-remote)" = "true" ]; then
+			echo_info "WARNING: Proceeding because gcrypt.allow-unencrypted-remote is set."
+			return 0
+		fi
+
+		echo_info ""
+		echo_info "EXPLANATION:"
+		echo_info "This remote appears to have been used without encryption previously."
+		echo_info "Pushing encrypted data now would reveal that you are using this repo,"
+		echo_info "and leaves the old unencrypted files visible to the server."
+		echo_info ""
+		echo_info "HOW TO FIX:"
+		echo_info "1. Backup your data:"
+		echo_info "   git clone $URL backup-repo"
+		echo_info "   # IMPORTANT: If the remote has non-tracked files, make a full"
+		echo_info "   # copy of the remote directory (e.g. cp/rsync) before proceeding!"
+		echo_info "2. Clean the remote (DANGEROUS - deletes unencrypted files):"
+		echo_info "   # In a separate clone of the remote:"
+		echo_info "   git rm -r ."
+		echo_info "   git commit -m 'Clean up for gcrypt'"
+		echo_info "   git push origin master"
+		echo_info "3. Retry your push."
+		echo_info ""
+		echo_info "OR, to ignore this and leak that you are using gcrypt:"
+		echo_info "   git config remote.$NAME.gcrypt-allow-unencrypted-remote true"
+		echo_info ""
+		
+		echo_die "Aborted because remote contains unencrypted files."
+	fi
+}
+
+
+	ensure_connected
+	check_safety
+
+
+
+	if isnonnull "$Refslist"
+	then
+		# mark all remote refs with  ^<sha-1> (if sha-1 exists locally)
+		r_revlist=$(xfeed "$Refslist" cut -f 1 -d ' ' |
+			safe_git_rev_parse | sed -e 's/^\(.\)/^&/')
+	fi
+
+	while IFS=: read -r src_ dst_ # << +src:dst
+	do
+		# shellcheck disable=SC2046
+		if [ $(echo "$src_" | cut -c1) != + ]
+		then
+			force_passed=false
+		fi
+
+		src_=${src_#+}
+		filter_to ! @Refslist "$Hex40 $dst_" "$Refslist"
+
+		if isnonnull "$src_"
+		then
+			append_to @r_revlist "$src_"
+			obj_=$(xfeed "$src_" safe_git_rev_parse)
+			append_to @Refslist "$obj_ $dst_"
+		fi
+	done <<EOF
+$1
+EOF
+
+	if iseq "$Did_find_repo" "no"
+	then
+		if [ "$force_passed" = true ]
+		then
+			make_new_repo
+		else
+			echo_die "Remote manifest not found. Use --force to create valid new repository."
+		fi
+	fi
+
+	if [ "$force_passed" = false ]
+	then
+		if [ "$Conf_force_required" = true ]
+		then
+			echo_die "Implicit force push disallowed by gcrypt configuration."
+		else
+		echo_info "Note: gcrypt overwrites the remote manifest on each push."
+			echo_info "In multi-user setups, coordinate pushes to avoid conflicts."
+		fi
+	fi
+
+	perform_repack
 
 	PUT_FINAL "$URL"
 
@@ -856,12 +1366,13 @@ EOF
 	done <<EOF
 $1
 EOF
-	
-	echo_git 
+
+	echo_git
 }
 
 cleanup_tmpfiles()
 {
+	print_debug "Cleaning up..."
 	if isnonnull "${Tempdir%%*."$$"}"; then
 		echo_die "Unexpected Tempdir value: $Tempdir"
 	fi
@@ -897,14 +1408,16 @@ setup()
 # handle git-remote-helpers protocol
 gcrypt_main_loop()
 {
-	local input_= input_inner= r_args= temp_key=
+	local input_="" input_inner="" r_args="" temp_key=""
 
 	NAME=$1  # Remote name
 	URL=$2   # Remote URL
 
+	echo_info "git-remote-gcrypt version $VERSION"
+
 	setup
 
-	while read input_
+	while read -r input_
 	do
 		case "$input_" in
 		capabilities)
@@ -915,7 +1428,7 @@ gcrypt_main_loop()
 			;;
 		fetch\ *)
 			r_args=${input_##fetch }
-			while read input_inner
+			while read -r input_inner
 			do
 				case "$input_inner" in
 				fetch*)
@@ -930,7 +1443,7 @@ gcrypt_main_loop()
 			;;
 		push\ *)
 			r_args=${input_##push }
-			while read input_inner
+			while read -r input_inner
 			do
 				case "$input_inner" in
 				push\ *)
@@ -954,17 +1467,247 @@ gcrypt_main_loop()
 	done
 }
 
-if [ "x$1" = x--check ]
-then
-	NAME=dummy-gcrypt-check
-	URL=$2
+get_remote_file_list()
+{
+	local r_files="" err_code=0
+	# Get all files in the remote
+	# For rsync backends, list files directly via rsync --list-only (awk extracts filename).
+	# For rclone backends, list files via rclone lsf.
+	# For sftp backends, list files via curl directory listing.
+	# For local backends, list files with ls
+	# For git backends, list files from the gcrypt branch tree.
+	if isurl rsync "$URL"; then
+		r_files=$(rsync --no-motd --list-only "$(rsynclocation "$URL")/" | awk '{print $NF}' | grep -vE '^\.$|^\.\.$') || return 1
+	elif isurl rclone "$URL"; then
+		r_files=$(rclone lsf "${URL#rclone://}") || return 1
+	elif isurl sftp "$URL"; then
+		r_files=$(curl -s -S -k "$URL/" | grep -vE '^\.$|^\.\.$') || return 1
+	elif islocalrepo "$URL"; then
+		if [ -d "$URL" ]; then
+			r_files=$(ls -1A "$URL") || return 1
+		else
+			# If directory doesn't exist, it's "empty" (or will be created)
+			r_files=""
+		fi
+	else
+		# Git backend:
+		# We need to fetch the remote state to list its files.
+		# Try fetching master and main to a temporary ref.
+		if git fetch --quiet "$URL" "refs/heads/master:refs/gcrypt/list-files" 2>/dev/null || \
+		   git fetch --quiet "$URL" "refs/heads/main:refs/gcrypt/list-files" 2>/dev/null; then
+			r_files=$(git ls-tree -r --name-only "refs/gcrypt/list-files") || {
+				git update-ref -d "refs/gcrypt/list-files"
+				return 1
+			}
+			git update-ref -d "refs/gcrypt/list-files"
+		else
+			# Could not fetch, or remote is empty.
+			# If checking, this might be fine, but for clean it's an issue if we expected files.
+			# Returning 1 is safer.
+			git update-ref -d "refs/gcrypt/list-files" 2>/dev/null || true
+			return 1
+		fi
+	fi
+	setvar "$1" "$r_files"
+	return $err_code
+}
+
+cmd_clean()
+{
+	local remote_files="" valid_files="" bad_files="" f=""
+
+	if ! ensure_connected; then
+		echo_die "Could not connect to $URL."
+	fi
+
+	if [ "$Did_find_repo" != "yes" ]; then
+		if [ "${FORCE_INIT:-}" = "yes" ]; then
+			echo_info "WARNING: No gcrypt manifest found, but --init specified."
+			echo_info "WARNING: Proceeding to clean uninitialized repository."
+		elif isnull "$FORCE_CLEAN"; then
+			echo_info "WARNING: No gcrypt manifest found."
+			echo_info "WARNING: Listing all files as potential garbage (dry-run)."
+		else
+			echo_info "Error: No gcrypt manifest found on remote '$URL'."
+			echo_info "Aborting clean to prevent accidental data loss."
+			echo_info "To force clean this uninitialized repository (e.g., to wipe before init):"
+			echo_info "  git-remote-gcrypt clean --init --force $URL"
+			exit 1
+		fi
+	fi
+
+	get_remote_file_list @remote_files || echo_die "Failed to list remote files."
+
+	if isnull "$remote_files"; then
+		echo_info "Remote is empty. Nothing to clean."
+		CLEAN_FINAL "$URL"
+		git remote remove "$NAME" 2>/dev/null || true
+		exit 0
+	fi
+	
+	# Build whitelist of valid gcrypt files
+	valid_files=""
+	if iseq "$Did_find_repo" "yes"; then
+		valid_files="$Manifestfile"
+		for f in $(xecho "$Packlist" | cut -d: -f3 | cut -d' ' -f1); do
+			valid_files="$valid_files$Newline$f"
+		done
+	fi
+	
+	# Find files to delete
+	bad_files=""
+	OIFS="$IFS"
+	IFS="$Newline"
+	for f in $remote_files; do
+		if isnull "$valid_files" || ! xfeed "$valid_files" grep -qxF "$f"; then
+			bad_files="$bad_files$Newline$f"
+		fi
+	done
+	IFS="$OIFS"
+	bad_files="${bad_files#"$Newline"}"
+
+	if isnull "$bad_files"; then
+		echo_info "No unencrypted files found. Remote is clean."
+		if [ "${DO_REPACK:-}" = "yes" ]; then
+			echo_info "Repacking remote..."
+			# Prepare r_revlist for repack (all refs)
+			r_revlist=""
+			if isnonnull "$Refslist"; then
+				r_revlist=$(xecho "$Refslist" | cut -d' ' -f1)
+			fi
+			GCRYPT_FULL_REPACK=1
+			perform_repack
+			PUT_FINAL "$URL"
+		fi
+		CLEAN_FINAL "$URL"
+		git remote remove "$NAME" 2>/dev/null || true
+		exit 0
+	fi
+	
+	echo_info "Found the following files to remove:"
+	xecho "$bad_files" | sed 's/^/  /' >&2
+
+	if isnull "$FORCE_CLEAN"; then
+		echo_info "NOTE: This is a scan of unencrypted files on the remote."
+		echo_info "To actually delete these files, use:"
+		if [ "$Did_find_repo" != "yes" ]; then
+			echo_info "   git-remote-gcrypt clean --init --force $URL"
+		else
+			echo_info "   git-remote-gcrypt clean --force $URL"
+		fi
+
+		# If user requested repack but found bad files and no force, abort (safety first)
+		if [ "${DO_REPACK:-}" = "yes" ]; then
+			echo_info "NOTE: Repack requested but pending file deletions require --force."
+		fi
+
+		CLEAN_FINAL "$URL"
+		git remote remove "$NAME" 2>/dev/null || true
+		exit 0
+	fi
+
+	echo_info "Removing files..."
+
+	# If we are forcing clean on uninitialized repo, Gref might be missing.
+	# Fetch it so gitception_remove has a base.
+	if [ "$Did_find_repo" != "yes" ] && isnonnull "$Gref_rbranch"; then
+		git fetch -q -f "$URL" "$Gref_rbranch:$Gref" 2>/dev/null || :
+	fi
+
+	REMOVE "$URL" "$bad_files"
+
+	if [ "${DO_REPACK:-}" = "yes" ]; then
+		echo_info "Repacking remote..."
+		# Prepare r_revlist from all current refs for full repack
+		r_revlist=""
+		if isnonnull "$Refslist"; then
+			r_revlist=$(xecho "$Refslist" | cut -d' ' -f1)
+		fi
+
+		# Set flag to force repack_if_needed to act
+		GCRYPT_FULL_REPACK=1
+		perform_repack
+	fi
+
+	PUT_FINAL "$URL"
+	CLEAN_FINAL "$URL"
+	git remote remove "$NAME" 2>/dev/null || true
+	echo_info "Done. Remote cleaned."
+	exit 0
+}
+
+cmd_stat()
+{
+	local remote_files="" file_count=0 tracked_count=0 untracked_count=0 valid_files="" f=""
+	
+	if ! ensure_connected; then
+		echo_die "Could not connect to $URL."
+	fi
+	
+	get_remote_file_list @remote_files || echo_die "Failed to list remote files."
+	file_count=$(line_count "$remote_files")
+	if isnull "$remote_files"; then
+		file_count=0
+	fi
+	
+	echo "Remote: $URL"
+	echo "Total files: $file_count"
+	
+	if [ "$Did_find_repo" = "yes" ]; then
+		echo "Gcrypt repository: detected"
+		echo "Manifest: found"
+		# Build whitelist of valid gcrypt files to count tracked
+		valid_files="$Manifestfile"
+		for f in $(xecho "$Packlist" | cut -d: -f3 | cut -d' ' -f1); do
+			valid_files="$valid_files$Newline$f"
+		done
+		tracked_count=0
+		for f in $remote_files; do
+			if xfeed "$valid_files" grep -qxF "$f"; then
+				tracked_count=$((tracked_count + 1))
+			fi
+		done
+		untracked_count=$((file_count - tracked_count))
+		echo "Tracked/Encrypted files: $tracked_count"
+		echo "Untracked/Plain files: $untracked_count"
+	else
+		echo "Gcrypt repository: not detected (no manifest)"
+		echo "Tracked/Encrypted files: 0"
+		echo "Untracked/Plain files: $file_count"
+		echo ""
+		echo "To force initiation of the repository as gcrypt (and delete all old objects):"
+		echo "  git-remote-gcrypt clean --init --force $URL"
+	fi
+	CLEAN_FINAL "$URL"
+	git remote remove "$NAME" 2>/dev/null || true
+	exit 0
+}
+
+if [ "$NAME" = "gcrypt-check" ]; then
+	resolve_url check
+	echo_info "Checking remote: $URL"
 	setup
 	ensure_connected
-	git remote remove $NAME 2>/dev/null || true
+	CLEAN_FINAL "$URL"
+	git remote remove "$NAME" 2>/dev/null || true
 	if iseq "$Did_find_repo" "no"
 	then
 		exit 100
 	fi
+elif [ "$NAME" = "gcrypt-clean" ]; then
+	resolve_url clean
+	echo_info "Checking remote: $URL"
+	setup
+	cmd_clean
+elif [ "$NAME" = "gcrypt-stat" ]; then
+	resolve_url stat
+	echo_info "Getting statistics for remote: $URL"
+	setup
+	cmd_stat
+elif [ "$1" = --version ] || [ "$1" = -v ]; then
+	echo "git-remote-gcrypt version $VERSION"
+	exit 0
 else
 	gcrypt_main_loop "$@"
+	# gcrypt_main_loop "$NAME" "$URL"
 fi

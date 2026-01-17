@@ -1,0 +1,41 @@
+---
+name: lint
+
+"on":
+  push:
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: "Enable debug logging (GCRYPT_DEBUG=1)"
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: "0 0 * * 0" # Sunday at 12 AM
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Lint [make lint]
+        run: make lint
+
+      - name: Check Formatting [make format]
+        # Requires shfmt and black.
+        # Assuming environment has them or we install them.
+        # ubuntu-latest has python3, we need shfmt.
+        run: |
+          sudo snap install shfmt
+          pip3 install black
+          make format
+          git diff --exit-code
+
+      - name: Check Generation [make generate]
+        run: |
+          make generate
+          git diff --exit-code

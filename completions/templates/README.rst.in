@@ -55,25 +55,7 @@ Command Reference
 
 ::
 
-    Options:
-      help             Show this help message
-      version          Show version information
-      check [URL]      Check if URL is a gcrypt repository
-      clean [URL|REMOTE] Scan/Clean unencrypted files from remote
-        clean --force        Actually delete files (default is scan only)
-        clean --init         Allow cleaning uninitialized repos (requires --force)
-        clean --hard         Override safety checks (requires --force)
-      stat [URL|REMOTE] Show diagnostics (file counts, tracked vs untracked)
-    Git Protocol Commands (for debugging):
-      capabilities     List remote helper capabilities
-      list             List refs in remote repository
-      push <refspec>   Push refs to remote repository
-      fetch <sha> <ref> Fetch refs from remote repository
-    
-    Environment Variables:
-      GCRYPT_DEBUG=1        Enable verbose debug logging to stderr
-      GCRYPT_TRACE=1        Enable shell tracing (set -x) for rsync/curl commands
-      GCRYPT_FULL_REPACK=1  Force full repack when pushing
+{commands_help}
 
 Configuration
 =============
