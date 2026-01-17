@@ -114,3 +114,18 @@ jobs:
 
       - name: Lint [make lint]
         run: make lint
+
+      - name: Check Formatting [make format]
+        # Requires shfmt and black.
+        # Assuming environment has them or we install them.
+        # ubuntu-latest has python3, we need shfmt.
+        run: |
+          sudo snap install shfmt
+          pip3 install black
+          make format
+          git diff --exit-code
+
+      - name: Check Generation [make generate]
+        run: |
+          make generate
+          git diff --exit-code

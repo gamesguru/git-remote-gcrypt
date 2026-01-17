@@ -65,7 +65,7 @@ trap 'rm -rf "$BUILD_DIR"' EXIT
 sed "s|@@DEV_VERSION@@|$VERSION|g" git-remote-gcrypt >"$BUILD_DIR/git-remote-gcrypt"
 
 # --- GENERATION ---
-verbose ./utils/gen_docs.sh
+verbose ./completions/gen_docs.sh
 
 # --- INSTALLATION ---
 # This is where the 'Permission denied' happens if not sudo

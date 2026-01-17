@@ -26,7 +26,7 @@ unset GIT_CONFIG_PARAMETERS
 
 # Suppress git advice messages
 # Note: git-remote-gcrypt reads actual config files, not just CLI -c options
-GIT="git -c advice.defaultBranchName=false -c commit.gpgSign=false"
+GIT="git -c advice.defaultBranchName=false -c commit.gpgSign=false -c init.defaultBranch=master"
 
 # --------------------------------------------------
 # Set up test environment

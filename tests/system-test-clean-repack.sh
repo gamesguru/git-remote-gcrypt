@@ -44,24 +44,22 @@ EOF
 chmod +x "${GNUPGHOME}/gpg"
 
 # Git config isolation
+# Git config isolation (Strict: no global config)
 export GIT_CONFIG_SYSTEM=/dev/null
-export GIT_CONFIG_GLOBAL="$TEST_DIR/gitconfig"
-git config user.email "test@test.com"
-git config user.name "Test"
-git config init.defaultBranch "master"
+export GIT_CONFIG_GLOBAL=/dev/null
 
 echo "Generating GPG key..."
 gpg --batch --passphrase "" --quick-generate-key "Test <test@test.com>"
 
 # Initialize repo
 cd "$REPO_DIR"
-git init
+git -c init.defaultBranch=master init
 git config user.email "test@test.com"
 git config user.name "Test User"
 git config advice.defaultBranchName false
 
 # Initialize local remote
-git init --bare "$REMOTE_DIR"
+git -c init.defaultBranch=master init --bare "$REMOTE_DIR"
 git remote add origin "gcrypt::$REMOTE_DIR"
 git config remote.origin.gcrypt-participants "test@test.com"
 git config remote.origin.gcrypt-signingkey "test@test.com"
@@ -74,20 +72,20 @@ export PATH="$PROJECT_ROOT:$PATH"
 echo "Push 1"
 echo "data 1" >file1.txt
 git add file1.txt
-git commit -m "Commit 1" --no-gpg-sign
+git commit -m "Commit 1"
 # Initial push needs force to initialize remote gcrypt repo
 git push origin +master
 
 echo "Push 2"
 echo "data 2" >file2.txt
 git add file2.txt
-git commit -m "Commit 2" --no-gpg-sign
+git commit -m "Commit 2"
 git push origin master
 
 echo "Push 3"
 echo "data 3" >file3.txt
 git add file3.txt
-git commit -m "Commit 3" --no-gpg-sign
+git commit -m "Commit 3"
 git push origin master
 
 # Verify we have multiple pack files in remote
@@ -129,7 +127,9 @@ echo "Created garbage blob: $GARBAGE_BLOB"
 cd "$TEST_DIR/raw_backend"
 echo "Garbage Data" >".garbage (file)"
 git add ".garbage (file)"
-git commit -m "Inject unencrypted garbage" --no-gpg-sign
+git config user.email "test@test.com"
+git config user.name "Test User"
+git commit -m "Inject unencrypted garbage"
 git push origin master
 
 # Verify garbage exists
