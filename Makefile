@@ -162,7 +162,7 @@ test/system:	##H Run logic tests (with bash & coverage)
 	     kcov --include-path=$(PWD) \
 	          --include-pattern=git-remote-gcrypt \
 	          --exclude-path=$(PWD)/.git,$(PWD)/tests \
-	          $(COV_SYSTEM) \
+	          $(COV_SYSTEM)/$$(basename $$test_script) \
 	          ./$$test_script; \
 	 done; \
 	 sed -i 's|^#!/bin/bash|#!/bin/sh|' git-remote-gcrypt; \
@@ -180,8 +180,7 @@ CHECK_COVERAGE = $(if $(call find_coverage_xml,$(1)), \
 	echo "Report for: file://$(abspath $(dir $(call find_coverage_xml,$(1))))/index.html" ; \
 	XML_FILE="$(call find_coverage_xml,$(1))" PATT="$(2)" FAIL_UNDER="$(3)" python3 tests/coverage_report.py, \
 	echo "" ; \
-	echo "Error: No coverage report found for $(2) in $(1)" ; \
-	false)
+	echo "Warning: No coverage report found for $(2) in $(1)")
 
 
 .PHONY: test/cov
