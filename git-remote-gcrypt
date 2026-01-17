@@ -89,6 +89,7 @@ while [ $# -gt 0 ]; do
 				case "$1" in
 					--force) FORCE_CLEAN=yes ;;
 					--hard) HARD_FORCE=yes ;;
+					--repack) DO_REPACK=yes ;;
 					--init) FORCE_INIT=yes ;;
 					-*) echo "Unknown option: $1" >&2; exit 1 ;;
 					*)
@@ -1128,6 +1129,77 @@ do_fetch()
 }
 
 # do_push PUSHARGS (multiple lines like +src:dst, with both + and src opt.)
+# Perform repack, manifest generation, and upload
+# Requires: r_revlist, Tempdir, Packkey_bytes, Hashtype, Packlist, Keeplist, Recipients, Refslist, Repoid, Extnlist, URL, NAME, VERSION
+perform_repack()
+{
+	local tmp_encrypted tmp_objlist tmp_manifest pack_id key_ r_pack_delete=""
+
+	tmp_encrypted="$Tempdir/packP"
+	tmp_objlist="$Tempdir/objlP"
+
+	{
+		xfeed "$r_revlist" git rev-list --objects --stdin --
+		repack_if_needed @r_pack_delete
+	} > "$tmp_objlist"
+
+	# Only send pack if we have any objects to send
+	if [ -s "$tmp_objlist" ]
+	then
+		key_=$(genkey "$Packkey_bytes")
+		pack_id=$(export GIT_ALTERNATE_OBJECT_DIRECTORIES="$Tempdir";
+			pipefail git pack-objects --stdout < "$tmp_objlist" |
+			pipefail ENCRYPT "$key_" |
+			tee "$tmp_encrypted" | gpg_hash "$Hashtype")
+
+		append_to @Packlist "pack :${Hashtype}:$pack_id $key_"
+		if isnonnull "$r_pack_delete"
+		then
+			append_to @Keeplist "keep :${Hashtype}:$pack_id 1"
+		fi
+	fi
+
+	# Generate manifest
+	# Update the gcrypt version in extensions (remove old, add current)
+	filter_to ! @Extnlist "extn gcrypt-version *" "$Extnlist"
+	append_to @Extnlist "extn gcrypt-version $VERSION"
+
+	echo_info "Encrypting to: $Recipients"
+	echo_info "Requesting manifest signature"
+
+	tmp_manifest="$Tempdir/maniP"
+	PRIVENCRYPT "$Recipients" > "$tmp_manifest" <<EOF
+$Refslist
+$Packlist
+$Keeplist
+repo $Repoid
+$Extnlist
+EOF
+
+	# Upload pack
+	if [ -s "$tmp_objlist" ]
+	then
+		PUT "$URL" "$pack_id" "$tmp_encrypted"
+	fi
+
+	# Upload manifest
+	PUT "$URL" "$Manifestfile" "$tmp_manifest"
+
+	rm -f "$tmp_encrypted"
+	rm -f "$tmp_objlist"
+	rm -f "$tmp_manifest"
+
+	# Delete packs
+	if isnonnull "$r_pack_delete"; then
+		REMOVE "$URL" "$(xecho "$r_pack_delete" | \
+			while IFS=': ' read -r _ _ pack_
+			do
+				isnonnull "$pack_" || continue
+				xecho "$pack_"
+			done)"
+	fi
+}
+
 do_push()
 {
 	# Security protocol:
@@ -1279,69 +1351,7 @@ EOF
 		fi
 	fi
 
-	tmp_encrypted="$Tempdir/packP"
-	tmp_objlist="$Tempdir/objlP"
-
-	{
-		xfeed "$r_revlist" git rev-list --objects --stdin --
-		repack_if_needed @r_pack_delete
-	} > "$tmp_objlist"
-
-	# Only send pack if we have any objects to send
-	if [ -s "$tmp_objlist" ]
-	then
-		key_=$(genkey "$Packkey_bytes")
-		pack_id=$(export GIT_ALTERNATE_OBJECT_DIRECTORIES="$Tempdir";
-			pipefail git pack-objects --stdout < "$tmp_objlist" |
-			pipefail ENCRYPT "$key_" |
-			tee "$tmp_encrypted" | gpg_hash "$Hashtype")
-
-		append_to @Packlist "pack :${Hashtype}:$pack_id $key_"
-		if isnonnull "$r_pack_delete"
-		then
-			append_to @Keeplist "keep :${Hashtype}:$pack_id 1"
-		fi
-	fi
-
-	# Generate manifest
-	# Update the gcrypt version in extensions (remove old, add current)
-	filter_to ! @Extnlist "extn gcrypt-version *" "$Extnlist"
-	append_to @Extnlist "extn gcrypt-version $VERSION"
-
-	echo_info "Encrypting to: $Recipients"
-	echo_info "Requesting manifest signature"
-
-	tmp_manifest="$Tempdir/maniP"
-	PRIVENCRYPT "$Recipients" > "$tmp_manifest" <<EOF
-$Refslist
-$Packlist
-$Keeplist
-repo $Repoid
-$Extnlist
-EOF
-
-	# Upload pack
-	if [ -s "$tmp_objlist" ]
-	then
-		PUT "$URL" "$pack_id" "$tmp_encrypted"
-	fi
-
-	# Upload manifest
-	PUT "$URL" "$Manifestfile" "$tmp_manifest"
-
-	rm -f "$tmp_encrypted"
-	rm -f "$tmp_objlist"
-	rm -f "$tmp_manifest"
-
-	# Delete packs
-	if isnonnull "$r_pack_delete"; then
-		REMOVE "$URL" "$(xecho "$r_pack_delete" | \
-			while IFS=': ' read -r _ _ pack_
-			do
-				isnonnull "$pack_" || continue
-				xecho "$pack_"
-			done)"
-	fi
+	perform_repack
 
 	PUT_FINAL "$URL"
 
@@ -1551,9 +1561,20 @@ cmd_clean()
 	done
 	IFS="$OIFS"
 	bad_files="${bad_files#"$Newline"}"
-	
+
 	if isnull "$bad_files"; then
 		echo_info "No unencrypted files found. Remote is clean."
+		if [ "${DO_REPACK:-}" = "yes" ]; then
+			echo_info "Repacking remote..."
+			# Prepare r_revlist for repack (all refs)
+			r_revlist=""
+			if isnonnull "$Refslist"; then
+				r_revlist=$(xecho "$Refslist" | cut -d' ' -f1)
+			fi
+			GCRYPT_FULL_REPACK=1
+			perform_repack
+			PUT_FINAL "$URL"
+		fi
 		CLEAN_FINAL "$URL"
 		git remote remove "$NAME" 2>/dev/null || true
 		exit 0
@@ -1570,6 +1591,12 @@ cmd_clean()
 		else
 			echo_info "   git-remote-gcrypt clean --force $URL"
 		fi
+
+		# If user requested repack but found bad files and no force, abort (safety first)
+		if [ "${DO_REPACK:-}" = "yes" ]; then
+			echo_info "NOTE: Repack requested but pending file deletions require --force."
+		fi
+
 		CLEAN_FINAL "$URL"
 		git remote remove "$NAME" 2>/dev/null || true
 		exit 0
@@ -1577,6 +1604,20 @@ cmd_clean()
 
 	echo_info "Removing files..."
 	REMOVE "$URL" "$bad_files"
+
+	if [ "${DO_REPACK:-}" = "yes" ]; then
+		echo_info "Repacking remote..."
+		# Prepare r_revlist from all current refs for full repack
+		r_revlist=""
+		if isnonnull "$Refslist"; then
+			r_revlist=$(xecho "$Refslist" | cut -d' ' -f1)
+		fi
+
+		# Set flag to force repack_if_needed to act
+		GCRYPT_FULL_REPACK=1
+		perform_repack
+	fi
+
 	PUT_FINAL "$URL"
 	CLEAN_FINAL "$URL"
 	git remote remove "$NAME" 2>/dev/null || true
