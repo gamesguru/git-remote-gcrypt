@@ -1,15 +1,8 @@
 ---
-name: Test on Termux
+name: Termux
 
 "on":
   push:
-  workflow_dispatch:
-    inputs:
-      debug:
-        description: "Enable debug logging (GCRYPT_DEBUG=1)"
-        required: false
-        type: boolean
-        default: false
   schedule:
     - cron: "0 0 * * 0" # Sunday at 12 AM
 
@@ -18,24 +11,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code on the Ubuntu Host (Ubuntu has glibc)
       - uses: actions/checkout@v4
-        with:
-          repository: gamesguru/git-remote-gcrypt
-          fetch-depth: 1
 
-      # 2. Run your tests inside Termux using manual Docker execution
       - name: Run tests in Termux
         run: |
-          # We mount the current directory ($PWD) to /data inside the container
-          # We set the working directory (-w) to /data
           docker run --rm \
-            -v "$PWD":/data \
-            -w /data \
-            --entrypoint /system/bin/sh \
+            -v "$PWD":/app \
+            -w /app \
             termux/termux-docker:latest \
-            -c "export PATH=/data/data/com.termux/files/usr/bin:$PATH; \\
-              pkg update && pkg install -y git make \\
-              && make install \\
-              && make check/install \\
-              && git-remote-gcrypt --version"
+            /system/bin/sh -c "export PATH=/data/data/com.termux/files/usr/bin:\$PATH; \
+            apt-get update && \
+            apt-get install -y git make bash python man && \
+            pip install docutils && \
+            make install && \
+            make check/install && \
+            git-remote-gcrypt --version"
