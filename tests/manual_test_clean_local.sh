@@ -1,5 +1,7 @@
 #!/bin/sh
 set -e
+export GIT_CONFIG_GLOBAL=/dev/null
+export GIT_CONFIG_SYSTEM=/dev/null
 
 # Setup test environment
 echo "Setting up test environment..."
@@ -17,7 +19,7 @@ mkdir -p "$REMOTE_DIR"
 
 # Initialize repo
 cd "$REPO_DIR"
-git init
+git -c init.defaultBranch=master init
 git config user.email "you@example.com"
 git config user.name "Your Name"
 
@@ -64,7 +66,7 @@ gpg --batch --passphrase "" --quick-generate-key "Test <test@test.com>"
 
 # Initialize REMOTE_DIR as a bare git repo so gcrypt treats it as a git backend (gitception)
 # This is required to trigger gitception_remove
-git init --bare "$REMOTE_DIR"
+git -c init.defaultBranch=master init --bare "$REMOTE_DIR"
 
 # Configure remote
 git remote add origin "gcrypt::$REMOTE_DIR"
@@ -77,8 +79,9 @@ git config advice.defaultBranchName false
 export PATH="$PROJECT_ROOT:$PATH"
 
 echo "Pushing to remote..."
-# Explicitly use +master to ensure 'force' is detected by gcrypt to allow init
-git push origin +master
+# Explicitly use +HEAD:master to ensure 'force' is detected by gcrypt.
+# Using HEAD:master ensures we push whatever branch 'git init' created (main/master) to 'master' on remote.
+git push origin +HEAD:master
 
 # Create garbage on remote
 cd "$TEST_DIR"
@@ -87,9 +90,13 @@ cd raw_remote_clone
 git checkout master || git checkout -b master
 
 # Add multiple garbage files
+# Add multiple garbage files
 echo "garbage 1" >garbage1.txt
 echo "garbage 2" >garbage2.txt
 git add garbage1.txt garbage2.txt
+# Configure identity for this clone to avoid global config interference
+git config user.email "garbage@maker.com"
+git config user.name "Garbage Maker"
 git commit -m "Add garbage files"
 git push origin master
 

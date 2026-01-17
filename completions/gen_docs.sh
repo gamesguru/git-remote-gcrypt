@@ -57,9 +57,8 @@ CLEAN_FLAGS_RAW=$(echo "$RAW_HELP" | grep "^    clean -" | awk '{
 CLEAN_FLAGS_BASH=$(echo "$CLEAN_FLAGS_RAW" | tr '\n' ' ' | sed 's/  */ /g; s/ $//')
 
 # For Zsh: Generate proper spec strings
-CLEAN_FLAGS_ZSH=""
 # Use while read loop to handle lines safely
-echo "$CLEAN_FLAGS_RAW" | while read -r line; do
+CLEAN_FLAGS_ZSH=$(echo "$CLEAN_FLAGS_RAW" | while read -r line; do
 	[ -z "$line" ] && continue
 	# line is "-f --force" or "--hard"
 	# simple split
@@ -93,15 +92,12 @@ echo "$CLEAN_FLAGS_RAW" | while read -r line; do
 	else
 		printf " %s'%s'" "$fspec" "$desc"
 	fi
-done >.zsh_flags_tmp
-CLEAN_FLAGS_ZSH=$(cat .zsh_flags_tmp)
-rm .zsh_flags_tmp
+done | tr '\n' ' ')
 
 # For Fish
 # We need to turn "-f --force" into: -s f -l force
 # And "--hard" into: -l hard
-CLEAN_FLAGS_FISH=""
-echo "$CLEAN_FLAGS_RAW" | while read -r line; do
+CLEAN_FLAGS_FISH=$(echo "$CLEAN_FLAGS_RAW" | while read -r line; do
 	[ -z "$line" ] && continue
 
 	short=""
@@ -139,9 +135,7 @@ echo "$CLEAN_FLAGS_RAW" | while read -r line; do
 	cmd="$cmd -d 'Flag';"
 
 	printf "%s\n" "$cmd"
-done >.fish_tmp
-CLEAN_FLAGS_FISH=$(cat .fish_tmp)
-rm .fish_tmp
+done)
 
 # 3. Generate README
 echo "Generating $README_OUT..."
