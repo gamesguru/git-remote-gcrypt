@@ -47,7 +47,8 @@ trap "rm -Rf -- '${tempdir}'" EXIT
 export HOME="${tempdir}"
 
 # Set up the PATH
-repo_root="${PWD}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+repo_root="$(dirname "$SCRIPT_DIR")"
 test_version=$(git describe --tags --always --dirty 2>/dev/null || echo "test")
 cp "$repo_root/git-remote-gcrypt" "$tempdir/git-remote-gcrypt"
 sed -i "s/@@DEV_VERSION@@/$test_version/" "$tempdir/git-remote-gcrypt"

@@ -82,7 +82,14 @@ trap 'rm -Rf -- "${tempdir}"' EXIT
 export HOME="${tempdir}"
 
 # Setup PATH to use local git-remote-gcrypt
-PATH=${PWD}:${PATH}
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+repo_root="$(dirname "$SCRIPT_DIR")"
+test_version=$(git describe --tags --always --dirty 2>/dev/null || echo "test")
+cp "$repo_root/git-remote-gcrypt" "$tempdir/git-remote-gcrypt"
+sed "s/@@DEV_VERSION@@/$test_version/" "$tempdir/git-remote-gcrypt" >"$tempdir/git-remote-gcrypt.tmp"
+mv "$tempdir/git-remote-gcrypt.tmp" "$tempdir/git-remote-gcrypt"
+chmod +x "$tempdir/git-remote-gcrypt"
+PATH=$tempdir:${PATH}
 readonly PATH
 export PATH
 
@@ -139,16 +146,6 @@ key_fps=()
 ) 2>&1 | indent
 
 # Capture fingerprints
-# Integrated fix: use mapfile
-#
-# CRITICAL FIX:
-# Previously, `grep fpr` captured both the Primary Key (EDDSA) and the Subkey (ECDH) fingerprints.
-# This caused the `key_fps` array to double in size (36 entries for 18 keys).
-# As a result, `key_fps[17]` (intended to be the last Primary Key) actually pointed to the
-# Subkey of the 9th key (`key_fps[8*2 + 1]`).
-# We configured `gcrypt.participants` with this Subkey, but GPG always signs with the Primary Key.
-# This caused a signature mismatch ("Participant A vs Signer B") and verification failure.
-# Using `awk` to filter `pub:` ensures we only capture the Primary Key.
 mapfile -t key_fps < <(gpg --list-keys --with-colons | awk -F: '/^pub:/ {f=1;next} /^fpr:/ && f {print $10;f=0}')
 echo "Generated keys: ${key_fps[*]}" | indent
 
