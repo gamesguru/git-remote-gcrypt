@@ -388,7 +388,7 @@ update_tree()
 	local tab_="	"
 	# $2 is a filename from the repo format
 	(set +e;
-		git ls-tree "$1" | xgrep -v -E '\b'"$2"'$';
+		git -c core.quotePath=false ls-tree "$1" | awk -F'\t' -v f="$2" '$2 != f'
 		xecho "100644 blob $3$tab_$2"
 	) | git mktree
 }
@@ -408,11 +408,21 @@ gitception_put()
 # depends on previous GET like put
 gitception_remove()
 {
-	local tree_id="" commit_id="" tab_="	"
-	# $2 is a filename from the repo format
-	tree_id=$(git ls-tree "$Gref" | awk -F'\t' -v f="$2" '$2 != f' | git mktree) &&
-		commit_id=$(anon_commit "$tree_id") &&
-		git update-ref "$Gref" "$commit_id"
+	local tree_id="" commit_id="" temp_index=""
+	temp_index=$(mktemp)
+	
+	# Use temporary index to cleanly remove file (handles recursion)
+	(
+		export GIT_INDEX_FILE="$temp_index"
+		git read-tree "$Gref"
+		git rm --cached --ignore-unmatch -q "$2"
+		tree_id=$(git write-tree)
+		if [ "$tree_id" != "$(git rev-parse "$Gref^{tree}")" ]; then
+			commit_id=$(anon_commit "$tree_id") &&
+			git update-ref "$Gref" "$commit_id"
+		fi
+	)
+	rm -f "$temp_index"
 }
 
 gitception_new_repo()
