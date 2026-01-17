@@ -12,7 +12,7 @@ _git_remote_gcrypt() {
 	# 1. First argument: complete commands and global options
 	if [[ $COMP_CWORD -eq 1 ]]; then
 		COMPREPLY=($(compgen -W "$commands $opts" -- "$cur"))
-		if [[ "$cur" == gcrypt::* ]]; then
+		if [[ $cur == gcrypt::* ]]; then
 			COMPREPLY+=("$cur")
 		fi
 		return 0
@@ -20,24 +20,24 @@ _git_remote_gcrypt() {
 
 	# 2. Handle subcommands
 	case "${COMP_WORDS[1]}" in
-	clean)
-		local remotes=$(git remote -v 2>/dev/null | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
-		COMPREPLY=($(compgen -W "{clean_flags_bash} $remotes" -- "$cur"))
-		return 0
-		;;
-	check | stat)
-		local remotes=$(git remote 2>/dev/null || :)
-		COMPREPLY=($(compgen -W "$remotes" -- "$cur"))
-		return 0
-		;;
-	capabilities | fetch | list | push)
-		COMPREPLY=($(compgen -W "-h --help" -- "$cur"))
-		return 0
-		;;
+		clean)
+			local remotes=$(git remote -v 2>/dev/null | grep 'gcrypt::' | awk '{print $1}' | sort -u || :)
+			COMPREPLY=($(compgen -W "{clean_flags_bash} $remotes" -- "$cur"))
+			return 0
+			;;
+		check | stat)
+			local remotes=$(git remote 2>/dev/null || :)
+			COMPREPLY=($(compgen -W "$remotes" -- "$cur"))
+			return 0
+			;;
+		capabilities | fetch | list | push)
+			COMPREPLY=($(compgen -W "-h --help" -- "$cur"))
+			return 0
+			;;
 	esac
 
 	# 3. Fallback (global flags if not in a known subcommand?)
-	if [[ "$cur" == -* ]]; then
+	if [[ $cur == -* ]]; then
 		COMPREPLY=($(compgen -W "$opts" -- "$cur"))
 		return 0
 	fi

@@ -63,13 +63,13 @@ check/deps:	##H Verify kcov & shellcheck
 
 LINT_LOCS_PY ?= $(shell git ls-files '*.py')
 LINT_LOCS_SH ?= $(shell git ls-files '*.sh' ':!tests/system-test.sh')
-FORMAT_LOCS_SH ?= completions/**
+FORMAT_LOCS_SHELL ?= completions/*.sh completions/**/*
 
 .PHONY: format
 format:	##H Format scripts
 	@$(call print_target,format)
 	@$(call print_info,Formatting shell scripts...)
-	shfmt -ci -bn -s -w $(LINT_LOCS_SH) $(FORMAT_LOCS_SH)
+	shfmt -ci -bn -s -w $(LINT_LOCS_SH) $(FORMAT_LOCS_SHELL)
 	@$(call print_success,OK.)
 	@$(call print_info,Formatting Python scripts...)
 	-black $(LINT_LOCS_PY)

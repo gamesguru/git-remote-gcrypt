@@ -13,18 +13,18 @@ _git_remote_gcrypt() {
 	_arguments -s -S $args
 
 	case $line[1] in
-	clean)
-		_arguments {clean_flags_zsh} \
-			'*:gcrypt URL: _alternative "remotes:gcrypt remote:($(git remote -v 2>/dev/null | grep "gcrypt::" | awk "{print \$1}" | sort -u))" "files:file:_files"'
-		;;
-	check | stat)
-		_arguments \
-			'*:gcrypt URL: _alternative "remotes:git remote:($(git remote 2>/dev/null))" "files:file:_files"'
-		;;
-	*)
-		_arguments \
-			'*:gcrypt URL:'
-		;;
+		clean)
+			_arguments {clean_flags_zsh} \
+				'*:gcrypt URL: _alternative "remotes:gcrypt remote:($(git remote -v 2>/dev/null | grep "gcrypt::" | awk "{print \$1}" | sort -u))" "files:file:_files"'
+			;;
+		check | stat)
+			_arguments \
+				'*:gcrypt URL: _alternative "remotes:git remote:($(git remote 2>/dev/null))" "files:file:_files"'
+			;;
+		*)
+			_arguments \
+				'*:gcrypt URL:'
+			;;
 	esac
 }
 
