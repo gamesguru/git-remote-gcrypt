@@ -746,6 +746,9 @@ read_config()
 
 	if isnull "$Recipients"
 	then
+		if [ "$NAME" = "gcrypt-stat" ]; then
+			return 0
+		fi
 		echo_info "You have not configured any keys you can encrypt to" \
 			"for this repository"
 		echo_info "Use ::"
@@ -763,7 +766,7 @@ early_safety_check()
 
 	# EARLY SAFETY CHECK for gitception backends:
 	# Before GPG validation, check if the remote has unencrypted files.
-	if [ "$NAME" = "gcrypt-clean" ]; then
+	if [ "$NAME" = "gcrypt-clean" ] || [ "$NAME" = "gcrypt-stat" ]; then
 		return 0
 	fi
 	# For dumb backends (rsync/sftp/rclone/local), check for ANY files.
@@ -1543,13 +1546,11 @@ cmd_stat()
 	if [ "$Did_find_repo" = "yes" ]; then
 		echo "Gcrypt repository: detected"
 		echo "Manifest: found"
-		
 		# Build whitelist of valid gcrypt files to count tracked
 		valid_files="$Manifestfile"
 		for f in $(xecho "$Packlist" | cut -d: -f3 | cut -d' ' -f1); do
 			valid_files="$valid_files$Newline$f"
 		done
-		
 		tracked_count=0
 		for f in $remote_files; do
 			if xfeed "$valid_files" grep -qxF "$f"; then
@@ -1557,15 +1558,16 @@ cmd_stat()
 			fi
 		done
 		untracked_count=$((file_count - tracked_count))
-		
-		echo "Tracked files: $tracked_count"
-		echo "Untracked files: $untracked_count"
+		echo "Tracked/Encrypted files: $tracked_count"
+		echo "Untracked/Plain files: $untracked_count"
 	else
 		echo "Gcrypt repository: not detected (no manifest)"
-		echo "Tracked files: 0"
-		echo "Untracked files: $file_count"
+		echo "Tracked/Encrypted files: 0"
+		echo "Untracked/Plain files: $file_count"
+		echo ""
+		echo "To force initiation of the repository as git-crypt (and delete all old objects):"
+		echo "  git-remote-gcrypt clean --init --force $URL"
 	fi
-	
 	CLEAN_FINAL "$URL"
 	git remote remove "$NAME" 2>/dev/null || true
 	exit 0
