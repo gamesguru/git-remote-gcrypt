@@ -118,7 +118,7 @@ test/installer:	##H Test installer logic
 	             --include-pattern=install.sh \
 	             --exclude-path=$(PWD)/.git,$(PWD)/tests \
 	             $(COV_INSTALL) \
-	             "$$test_script" 2>&1 | tee -a .tmp/kcov.log; \
+	             "$$test_script" 2>&1 | (mkdir -p .tmp; tee -a .tmp/kcov.log); \
 	     else \
 	         bash "$$test_script" 2>&1 | tee -a .tmp/kcov.log; \
 	     fi; \
@@ -212,7 +212,7 @@ install/user:	##H make install prefix=~/.local
 
 .PHONY: check/install
 check/install:	##H Verify installation works
-	bash ./tests/verify-system-install.sh
+	bash ./tests/installer-test-verify.sh
 
 
 .PHONY: uninstall/, uninstall

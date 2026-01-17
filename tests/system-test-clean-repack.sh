@@ -139,9 +139,10 @@ echo "Running clean --repack --force..."
 git-remote-gcrypt clean --repack --force origin
 
 # Verify garbage removal from backend
-cd "$TEST_DIR/raw_backend"
-git fetch origin master
-git reset --hard origin/master
+cd "$TEST_DIR"
+rm -rf raw_backend_verify
+git clone "$REMOTE_DIR" raw_backend_verify
+cd raw_backend_verify
 
 if [ -f ".garbage (file)" ]; then
 	echo "Failure: .garbage (file) still exists in backend!"
@@ -151,16 +152,8 @@ else
 fi
 
 # Verify result
-# Clone backend again (pull) and check structure
-cd "$TEST_DIR/raw_backend"
-git pull origin master
-
-# Count commits? Repack might add a commit?
-# Repack reads all objects, creates 1 new pack, updates manifest.
-# This results in a NEW commit on the backend that has the new manifest.
-# The OLD packs are removed (deleted from backend).
-# So we should see a new commit.
 # Check if commit SHA changed. Repack force-pushes a new manifest state.
+cd "$TEST_DIR/raw_backend_verify"
 NEW_HEAD=$(git rev-parse HEAD)
 echo "Old HEAD: $HEAD_SHA"
 echo "New HEAD: $NEW_HEAD"

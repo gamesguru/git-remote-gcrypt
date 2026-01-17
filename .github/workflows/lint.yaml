@@ -44,7 +44,7 @@ jobs:
         run: make
 
       - name: Test Installer
-        run: bash ./tests/test-install-logic.sh
+        run: bash ./tests/installer-test-logic.sh
 
       - name: Install [make install]
         run: sudo make install
@@ -81,7 +81,7 @@ jobs:
         run: make
 
       - name: Test Installer
-        run: bash ./tests/test-install-logic.sh
+        run: bash ./tests/installer-test-logic.sh
 
       - name: Install [make install]
         run: make install # container runs as sudo

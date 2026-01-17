@@ -23,7 +23,7 @@ COMP_CWORD=0
 COMPREPLY=()
 
 # --- Mock git ---
-# shellcheck disable=SC2329
+# shellcheck disable=SC2329,SC2317
 git() {
 	if [[ $1 == "remote" ]]; then
 		echo "origin"
