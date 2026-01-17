@@ -75,6 +75,9 @@ format:	##H Format scripts
 	-black $(LINT_LOCS_PY)
 	-isort $(LINT_LOCS_PY)
 	@$(call print_success,OK.)
+	@$(call print_info,Formatting YAML files...)
+	-prettier --write .github/workflows
+	@$(call print_success,OK.)
 
 .PHONY: lint
 lint:	##H Run shellcheck

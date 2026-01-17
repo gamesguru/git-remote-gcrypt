@@ -145,7 +145,9 @@ rm .fish_tmp
 
 # 3. Generate README
 echo "Generating $README_OUT..."
-sed "s/{commands_help}/$(printf '%s\n' "$COMMANDS_HELP" | sed 's/[\/&]/\\&/g' | sed ':a;N;$!ba;s/\n/\\n/g')/" "$README_TMPL" >"$README_OUT"
+# Escape backslashes, forward slashes, and ampersands, then flatten newlines to \n
+ESCAPED_HELP=$(printf '%s\n' "$COMMANDS_HELP" | sed 's/\\/\\\\/g; s/[\/&]/\\&/g' | awk 'NR>1{printf "\\n"} {printf "%s", $0}')
+sed "s/{commands_help}/$ESCAPED_HELP/" "$README_TMPL" >"$README_OUT"
 
 # 4. Generate Bash
 echo "Generating Bash completions..."
