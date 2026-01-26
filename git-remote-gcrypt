@@ -943,9 +943,8 @@ ensure_connected()
 				if isnonnull "$remote_head"; then
 					Gref_rbranch="$remote_head"
 					print_debug "Detected remote default branch: $Gref_rbranch"
-					echo_info "Debug: Detected remote default branch: $Gref_rbranch"
 				else
-					echo_info "Debug: Failed to detect remote default branch."
+					echo_info "WARNING: Failed to detect remote default branch."
 				fi
 			fi
 		else
