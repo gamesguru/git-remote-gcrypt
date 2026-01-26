@@ -759,31 +759,53 @@ read_config()
 		else
 			filter_to @r_keyfpr "fpr*" "$gpg_list"
 		fi
-		isnull "$r_keyinfo" || isnonnull "${r_keyinfo##*"$Newline"*}" ||
-		echo_info "WARNING: '$recp_' matches multiple keys, using one"
-		isnull "$r_keyfpr" || isnonnull "${r_keyfpr##*"$Newline"*}" ||
-		echo_info "WARNING: '$recp_' matches multiple fingerprints, using one"
-		r_keyinfo=${r_keyinfo%%"$Newline"*}
-		r_keyfpr=${r_keyfpr%%"$Newline"*}
-		keyid_=$(xfeed "$r_keyinfo" cut -f 5 -d :)
-		fprid_=$(xfeed "$r_keyfpr" cut -f 10 -d :)
-		print_debug "Resolved participant $recp_ to fpr: $fprid_"
-		if isnonnull "$fprid_"; then
-			signers_="$signers_ $keyid_"
-			append_to @good_sig "^\[GNUPG:\] VALIDSIG .*$fprid_$"
-		else
-			echo_info "WARNING: Skipping missing key $recp_"
-			continue
-		fi
-		# Check 'E'ncrypt capability
-		cap_=$(xfeed "$r_keyinfo" cut -f 12 -d :)
-		if ! iseq "${cap_#*E}" "$cap_"; then
-			if [ "$Conf_pubish_participants" = true ]; then
-				Recipients="$Recipients -r $keyid_"
+		# Iterate over all matched keys (handling GPG groups)
+		# Use Here-Doc to avoid subshell (SC2030/SC2031)
+		while IFS=: read -r _ _ _ _ keyid_ _ _ _ _ _ _ cap_ _; do
+			isnonnull "$keyid_" || continue
+
+			# Find validation fingerprint
+			# We need to grep specifically for the FPR line corresponding to this key
+			# But r_keyinfo is just pub lines. r_keyfpr has fpr lines.
+			# GPG output order: pub, fpr.
+			# Simpler approach: Re-run gpg for specific keyid to get its fingerprint securely?
+			# Or just trust the fpr list matches the pub list order? They usually do.
+			# But let's just grep the fingerprint from the full list for this keyid?
+			# Actually, we just need 'a' fingerprint for this keyid to trust signatures.
+
+			local this_fpr=""
+			# Get FPR for this keyid from the full listing we already grabbed
+			# Match 'fpr' record immediately following the 'pub' record for this keyid
+			# This is tricky with grep.
+			# Alternative: Trust that `gpg -k` expands the group into discrete keys.
+
+			# Let's simple check if we have a valid fingerprint for this keyid in our list
+			# The original code logic was trying to map input -> single key.
+			# New logic: Input -> List of keys.
+
+			# We can just get the FPR for this specific keyid
+			this_fpr=$(echo "$gpg_list" | grep -A 1 "^pub:.*:$keyid_:" | grep "^fpr:" | cut -f 10 -d :)
+
+			print_debug "Resolved participant $recp_ to key: $keyid_ fpr: $this_fpr"
+
+			if isnonnull "$this_fpr"; then
+				signers_="$signers_ $keyid_"
+				append_to @good_sig "^\[GNUPG:\] VALIDSIG .*$this_fpr$"
 			else
-				Recipients="$Recipients -R $keyid_"
+				echo_info "WARNING: No fingerprint found for key $keyid_ (from $recp_)"
 			fi
-		fi
+
+			# Check 'E'ncrypt capability
+			if ! iseq "${cap_#*E}" "$cap_"; then
+				if [ "$Conf_pubish_participants" = true ]; then
+					Recipients="$Recipients -r $keyid_"
+				else
+					Recipients="$Recipients -R $keyid_"
+				fi
+			fi
+		done <<EOF
+$r_keyinfo
+EOF
 	done
 
 	if isnull "$Recipients"
