@@ -363,7 +363,7 @@ gitception_get()
 		command mv -f "$fet_head" "$fet_head.$$~" || :
 	fi
 	if git fetch -q -f "$1" "$Gref_rbranch:$Gref-fetch" >/dev/null; then
-		obj_id="$(git ls-tree "$Gref-fetch" | xgrep -E '\b'"$2"'$' | awk '{print $3}')"
+		obj_id="$(git -c core.quotePath=false ls-tree "$Gref-fetch" | xgrep -E '\b'"$2"'$' | awk '{print $3}')"
 		if isnonnull "$obj_id" && git cat-file blob "$obj_id"; then
 			ret_=:
 		else
@@ -845,7 +845,7 @@ early_safety_check()
 		return 0
 	fi
 
-	check_files=$(git ls-tree --name-only "refs/gcrypt/safety-check" 2>/dev/null || :)
+	check_files=$(git -c core.quotePath=false ls-tree --name-only "refs/gcrypt/safety-check" 2>/dev/null || :)
 	git update-ref -d "refs/gcrypt/safety-check" 2>/dev/null || true
 
 	if isnull "$check_files"; then
@@ -1232,7 +1232,7 @@ check_safety()
 	fi
 	
 	# Get all files in the remote
-	remote_files=$(git ls-tree --name-only "$Gref" 2>/dev/null || :)
+	remote_files=$(git -c core.quotePath=false ls-tree --name-only "$Gref" 2>/dev/null || :)
 	
 	# If no files, nothing to check
 	isnonnull "$remote_files" || return 0
@@ -1502,7 +1502,7 @@ get_remote_file_list()
 		# Try fetching master and main to a temporary ref.
 		if git fetch --quiet "$URL" "refs/heads/master:refs/gcrypt/list-files" 2>/dev/null || \
 		   git fetch --quiet "$URL" "refs/heads/main:refs/gcrypt/list-files" 2>/dev/null; then
-			r_files=$(git ls-tree -r --name-only "refs/gcrypt/list-files") || {
+			r_files=$(git -c core.quotePath=false ls-tree -r --name-only "refs/gcrypt/list-files") || {
 				git update-ref -d "refs/gcrypt/list-files"
 				return 1
 			}

@@ -36,7 +36,6 @@ GIT="git -c advice.defaultBranchName=false -c commit.gpgSign=false -c init.defau
 
 # Generate key
 gpg --batch --passphrase "" --quick-generate-key "Test <test@test.com>"
-KEYID=$(gpg --list-keys --with-colons "test@test.com" | awk -F: '/^pub:/ { print $5 }')
 
 # 1. Init bare repo as "remote" (creates HEAD, config, description, etc)
 print_info "Initializing 'remote' as standard bare repo..."

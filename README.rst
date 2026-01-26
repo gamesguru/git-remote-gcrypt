@@ -317,18 +317,6 @@ unencrypted files, you must use the ``--force`` flag::
 
     git-remote-gcrypt clean url --force
 
-
-Stats for gcrypt repos
-======================
-
-To show diagnostics for a remote gcrypt repo, use::
-
-    git-remote-gcrypt stat [url|remote]
-
-This command will list the total number of files on the remote, and if
-a valid gcrypt repository is detected, it will also show the number of
-tracked (encrypted) files versus untracked (plain) files.
-
 Known issues
 ============
 
