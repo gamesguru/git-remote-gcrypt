@@ -1531,6 +1531,9 @@ get_remote_file_list()
 			# List files from ALL fetched branches
 			# We iterate refs manually to detect which one has files
 			local refs all_files="" ref_files=""
+			# distinct refs
+			Global_Dirty_Refs=""
+			refs=$(git for-each-ref --format='%(refname)' "refs/gcrypt/list-files/")
 			echo_info "Debug: Found refs: $refs"
 			for ref in $refs; do
 				echo_info "Debug: Checking ref $ref"
