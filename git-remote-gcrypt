@@ -1547,6 +1547,7 @@ get_remote_file_list()
 
 				local ls_stderr=""
 				ls_stderr=$(mktemp)
+				rm -f "$ls_stderr"
 				ref_files=$(git -c core.quotePath=false ls-tree -r --name-only "$ref" 2>"$ls_stderr") || {
 					echo_info "Debug: ls-tree failed for $ref:"
 					cat "$ls_stderr" >&2
