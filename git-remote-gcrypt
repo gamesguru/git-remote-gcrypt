@@ -907,7 +907,28 @@ ensure_connected()
 		isnull "$url_frag" ||
 			Manifestfile=$(xecho_n "$url_frag" | gpg_hash SHA224)
 	else
-		isnull "$url_frag" || Gref_rbranch="refs/heads/$url_frag"
+		# not for gitception
+		if isnull "$url_frag"; then
+			if [ -z "$Did_find_repo" ] || [ "$Did_find_repo" = "no" ]; then
+				# Try to detect the default branch from the remote
+				# We only do this if we haven't found the repo (optimization/safety)
+				# or we can just always do it if url_frag is missing.
+				# `git ls-remote --symref` output looks like:
+				# ref: refs/heads/main	HEAD
+				# 534...	HEAD
+				local remote_head=""
+				remote_head=$(git ls-remote --symref "$URL" HEAD 2>/dev/null | grep "^ref: " | cut -f 2 -d ' ' | cut -f 1)
+				if isnonnull "$remote_head"; then
+					Gref_rbranch="$remote_head"
+					print_debug "Detected remote default branch: $Gref_rbranch"
+					echo_info "Debug: Detected remote default branch: $Gref_rbranch"
+				else
+					echo_info "Debug: Failed to detect remote default branch."
+				fi
+			fi
+		else
+			Gref_rbranch="refs/heads/$url_frag"
+		fi
 	fi
 
 	Repoid=
@@ -1499,19 +1520,32 @@ get_remote_file_list()
 	else
 		# Git backend:
 		# We need to fetch the remote state to list its files.
-		# Try fetching master and main to a temporary ref.
-		if git fetch --quiet "$URL" "refs/heads/master:refs/gcrypt/list-files" 2>/dev/null || \
-		   git fetch --quiet "$URL" "refs/heads/main:refs/gcrypt/list-files" 2>/dev/null; then
-			r_files=$(git -c core.quotePath=false ls-tree -r --name-only "refs/gcrypt/list-files") || {
-				git update-ref -d "refs/gcrypt/list-files"
-				return 1
-			}
-			git update-ref -d "refs/gcrypt/list-files"
+		# Fetch all heads to ensure we see files on any branch (e.g. main vs master).
+		# We map them to a temporary namespace refs/gcrypt/list-files/*
+		if git fetch --quiet "$URL" "refs/heads/*:refs/gcrypt/list-files/*" 2>/dev/null; then
+			# List files from ALL fetched branches
+			# We iterate refs manually to detect which one has files
+			local refs all_files="" ref_files=""
+			# distinct refs
+			Global_Dirty_Refs=""
+			refs=$(git for-each-ref --format='%(refname)' "refs/gcrypt/list-files/")
+			for ref in $refs; do
+				ref_files=$(git -c core.quotePath=false ls-tree -r --name-only "$ref")
+				if isnonnull "$ref_files"; then
+					# Map refs/gcrypt/list-files/BRANCH -> refs/heads/BRANCH
+					local real_ref="refs/heads/${ref#refs/gcrypt/list-files/}"
+					Global_Dirty_Refs="$Global_Dirty_Refs$real_ref "
+					all_files="$all_files$ref_files$Newline"
+				fi
+			done
+			
+			r_files=$(xecho "$all_files" | sort -u)
+			
+			# Cleanup temporary refs
+			git for-each-ref --format='%(refname)' "refs/gcrypt/list-files/" | \
+				while read -r ref; do git update-ref -d "$ref"; done || :
 		else
 			# Could not fetch, or remote is empty.
-			# If checking, this might be fine, but for clean it's an issue if we expected files.
-			# Returning 1 is safer.
-			git update-ref -d "refs/gcrypt/list-files" 2>/dev/null || true
 			return 1
 		fi
 	fi
@@ -1637,6 +1671,18 @@ cmd_clean()
 	fi
 
 	PUT_FINAL "$URL"
+	# Also push to any other dirty branches we found to ensure they are cleaned
+	if isnonnull "$Global_Dirty_Refs"; then
+		for ref in $Global_Dirty_Refs; do
+			if isnoteq "$ref" "$Gref_rbranch"; then
+				echo_info "Cleaning additional branch: $ref"
+				# Temporarily switch target branch for the push
+				Gref_rbranch="$ref"
+				PUT_FINAL "$URL"
+			fi
+		done
+	fi
+
 	CLEAN_FINAL "$URL"
 	git remote remove "$NAME" 2>/dev/null || true
 	echo_info "Done. Remote cleaned."
