@@ -1522,6 +1522,11 @@ get_remote_file_list()
 		# We need to fetch the remote state to list its files.
 		# Fetch all heads to ensure we see files on any branch (e.g. main vs master).
 		# We map them to a temporary namespace refs/gcrypt/list-files/*
+
+		# Clean up any stale refs/gcrypt/list-files (could be a file from old version)
+		# to avoid D/F conflicts with the directory we are about to use.
+		git update-ref -d "refs/gcrypt/list-files" 2>/dev/null || :
+		
 		if git fetch --quiet "$URL" "refs/heads/*:refs/gcrypt/list-files/*" 2>/dev/null; then
 			# List files from ALL fetched branches
 			# We iterate refs manually to detect which one has files
@@ -1650,6 +1655,16 @@ cmd_clean()
 	echo_info "Removing files..."
 
 	# If we are forcing clean on uninitialized repo, Gref might be missing.
+	# If we found dirty refs, pick the first one as our base to insure Gref is valid.
+	if [ "$Did_find_repo" != "yes" ] && isnonnull "$Global_Dirty_Refs"; then
+		# shellcheck disable=SC2086
+		set -- $Global_Dirty_Refs
+		if isnonnull "$1"; then
+			echo_info "Using $1 as base for cleaning."
+			Gref_rbranch="$1"
+		fi
+	fi
+
 	# Fetch it so gitception_remove has a base.
 	if [ "$Did_find_repo" != "yes" ] && isnonnull "$Gref_rbranch"; then
 		git fetch -q -f "$URL" "$Gref_rbranch:$Gref" 2>/dev/null || :
