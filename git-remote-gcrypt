@@ -1534,21 +1534,16 @@ get_remote_file_list()
 			# distinct refs
 			Global_Dirty_Refs=""
 			refs=$(git for-each-ref --format='%(refname)' "refs/gcrypt/list-files/")
-			echo_info "Debug: Found refs: $refs"
 			for ref in $refs; do
-				echo_info "Debug: Checking ref $ref"
 				# Verify object exists and is valid
 				if ! git cat-file -e "$ref"; then
-					echo_info "Debug: Ref $ref points to missing object!"
 					continue
 				fi
 
 				local ls_stderr=""
 				ls_stderr=$(mktemp)
-				# Use >| to force overwrite ignore noclobber
+				rm -f "$ls_stderr"
 				ref_files=$(git -c core.quotePath=false ls-tree -r --name-only "$ref" 2>| "$ls_stderr") || {
-					echo_info "Debug: ls-tree failed for $ref:"
-					cat "$ls_stderr" >&2
 					rm -f "$ls_stderr"
 					continue
 				}
@@ -1559,12 +1554,6 @@ get_remote_file_list()
 					local real_ref="refs/heads/${ref#refs/gcrypt/list-files/}"
 					Global_Dirty_Refs="$Global_Dirty_Refs$real_ref "
 					all_files="$all_files$ref_files$Newline"
-				else
-					echo_info "Debug: Ref $ref seems empty with -r."
-					# Debug: try non-recursive to see if root has files
-					local root_files
-					root_files=$(git -c core.quotePath=false ls-tree --name-only "$ref")
-					echo_info "Debug: Root files: $root_files"
 				fi
 			done
 			
