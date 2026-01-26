@@ -531,3 +531,38 @@ if [ -n "${COV_DIR:-}" ]; then
     print_success "OK. Report: file://${COV_DIR}/index.html"
 fi
 
+###
+section_break
+
+print_info "Step 11: Stat Command Test:"
+{
+    cd "${tempdir}/first"
+    
+    # Run stat on the valid repo (second.git)
+    output_file="${tempdir}/stat_output"
+    print_info "Running stat on valid repo (second.git)..."
+    (
+        set -x
+        git-remote-gcrypt stat "gcrypt::${tempdir}/second.git#${default_branch}"
+    ) > "${output_file}" 2>&1
+    
+    # Display output for debugging
+    indent < "${output_file}"
+    
+    # Verify expected output strings
+    if grep -q "Total files:" "${output_file}" && \
+       grep -q "Gcrypt repository: detected" "${output_file}" && \
+       grep -q "Tracked/Encrypted files:" "${output_file}"; then
+        print_success "Stat command output verified."
+    else
+        print_err "Stat command missing expected output!"
+        grep "Total" "${output_file}" || echo "Total not found"
+        grep "Gcrypt" "${output_file}" || echo "Gcrypt detected not found"
+        grep "Tracked" "${output_file}" || echo "Tracked not found"
+        exit 1
+    fi
+
+} | indent
+
+
+

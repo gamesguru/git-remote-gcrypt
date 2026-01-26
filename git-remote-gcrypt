@@ -928,6 +928,10 @@ ensure_connected()
 			echo_info "..but repository ID is set. Aborting."
 			return 1
 		else
+			if [ "$1" = "strict" ]; then
+				echo_info "Repository not found: $URL"
+				return 1
+			fi
 			echo_info "Repository not found: $URL"
 			return 0
 		fi
@@ -1093,7 +1097,7 @@ do_capabilities()
 do_list()
 {
 	local obj_id="" ref_name="" line_=""
-	ensure_connected
+	ensure_connected "$1"
 
 	xecho "$Refslist" | while read -r line_
 	do
@@ -1423,7 +1427,10 @@ gcrypt_main_loop()
 		capabilities)
 			do_capabilities
 			;;
-		list|list\ for-push)
+		list)
+			do_list strict
+			;;
+		list\ for-push)
 			do_list
 			;;
 		fetch\ *)
