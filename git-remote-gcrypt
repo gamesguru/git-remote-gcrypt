@@ -1527,15 +1527,10 @@ get_remote_file_list()
 		# to avoid D/F conflicts with the directory we are about to use.
 		git update-ref -d "refs/gcrypt/list-files" 2>/dev/null || :
 		
-		echo_info "Debug: Fetching refs/heads/* from $URL to list files..."
-		if git fetch --verbose "$URL" "refs/heads/*:refs/gcrypt/list-files/*" >&2; then
-			echo_info "Debug: Fetch successful."
+		if git fetch --quiet "$URL" "refs/heads/*:refs/gcrypt/list-files/*" 2>/dev/null; then
 			# List files from ALL fetched branches
 			# We iterate refs manually to detect which one has files
 			local refs all_files="" ref_files=""
-			# distinct refs
-			Global_Dirty_Refs=""
-			refs=$(git for-each-ref --format='%(refname)' "refs/gcrypt/list-files/")
 			echo_info "Debug: Found refs: $refs"
 			for ref in $refs; do
 				echo_info "Debug: Checking ref $ref"
@@ -1547,8 +1542,8 @@ get_remote_file_list()
 
 				local ls_stderr=""
 				ls_stderr=$(mktemp)
-				rm -f "$ls_stderr"
-				ref_files=$(git -c core.quotePath=false ls-tree -r --name-only "$ref" 2>"$ls_stderr") || {
+				# Use >| to force overwrite ignore noclobber
+				ref_files=$(git -c core.quotePath=false ls-tree -r --name-only "$ref" 2>| "$ls_stderr") || {
 					echo_info "Debug: ls-tree failed for $ref:"
 					cat "$ls_stderr" >&2
 					rm -f "$ls_stderr"
@@ -1562,7 +1557,11 @@ get_remote_file_list()
 					Global_Dirty_Refs="$Global_Dirty_Refs$real_ref "
 					all_files="$all_files$ref_files$Newline"
 				else
-					echo_info "Debug: Ref $ref is empty (no files found)."
+					echo_info "Debug: Ref $ref seems empty with -r."
+					# Debug: try non-recursive to see if root has files
+					local root_files
+					root_files=$(git -c core.quotePath=false ls-tree --name-only "$ref")
+					echo_info "Debug: Root files: $root_files"
 				fi
 			done
 			
