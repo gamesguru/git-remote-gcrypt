@@ -1539,12 +1539,29 @@ get_remote_file_list()
 			echo_info "Debug: Found refs: $refs"
 			for ref in $refs; do
 				echo_info "Debug: Checking ref $ref"
-				ref_files=$(git -c core.quotePath=false ls-tree -r --name-only "$ref")
+				# Verify object exists and is valid
+				if ! git cat-file -e "$ref"; then
+					echo_info "Debug: Ref $ref points to missing object!"
+					continue
+				fi
+
+				local ls_stderr=""
+				ls_stderr=$(mktemp)
+				ref_files=$(git -c core.quotePath=false ls-tree -r --name-only "$ref" 2>"$ls_stderr") || {
+					echo_info "Debug: ls-tree failed for $ref:"
+					cat "$ls_stderr" >&2
+					rm -f "$ls_stderr"
+					continue
+				}
+				rm -f "$ls_stderr"
+
 				if isnonnull "$ref_files"; then
 					# Map refs/gcrypt/list-files/BRANCH -> refs/heads/BRANCH
 					local real_ref="refs/heads/${ref#refs/gcrypt/list-files/}"
 					Global_Dirty_Refs="$Global_Dirty_Refs$real_ref "
 					all_files="$all_files$ref_files$Newline"
+				else
+					echo_info "Debug: Ref $ref is empty (no files found)."
 				fi
 			done
 			
