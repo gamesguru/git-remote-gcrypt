@@ -30,6 +30,7 @@ Gref="refs/gcrypt/gitception$GITCEPTION"
 Gref_rbranch="refs/heads/master"
 Packkey_bytes=63  # nbr random bytes for packfile keys, any >= 256 bit is ok
 Hashtype=SHA256   # SHA512 SHA384 SHA256 SHA224 supported.
+
 VERSION="@@DEV_VERSION@@"
 
 
@@ -89,7 +90,10 @@ while [ $# -gt 0 ]; do
 				case "$1" in
 					--force) FORCE_CLEAN=yes ;;
 					--hard) HARD_FORCE=yes ;;
-					--repack) DO_REPACK=yes ;;
+					--repack)
+					# shellcheck disable=SC2034
+					DO_REPACK=yes
+					;;
 					--init) FORCE_INIT=yes ;;
 					-*) echo "Unknown option: $1" >&2; exit 1 ;;
 					*)
@@ -186,6 +190,7 @@ EOF
 esac
 
 Manifestfile=91bd0c092128cf2e60e1a608c31e92caf1f9c1595f83f2890ef17c0e4881aa0a
+
 Hex40="[a-f0-9]"
 Hex40=$Hex40$Hex40$Hex40$Hex40$Hex40$Hex40$Hex40$Hex40
 Hex40=$Hex40$Hex40$Hex40$Hex40$Hex40 # Match SHA-1 hexdigest
@@ -791,7 +796,7 @@ resolve_participant()
 	if [ -n "$gpg_conf" ] && [ -f "$gpg_conf" ]; then
 		# Parse group definition: group name = val1 val2
 		local members
-		members=$(grep "^[[:space:]]*group[[:space:]]\+$recp_[[:space:]]*=" "$gpg_conf" | tail -1 | cut -d= -f2-)
+		members=$(grep "^[[:space:]]*group[[:space:]]\+${recp_}[[:space:]]*=" "$gpg_conf" | tail -1 | cut -d= -f2-)
 
 		# Trim and expand
 		if [ -n "$members" ]; then
@@ -828,6 +833,7 @@ read_config()
 	Conf_gpg_args=$(git config --get gcrypt.gpg-args '.+' || :)
 	Conf_rsync_put_flags=$(git config --get "remote.$NAME.gcrypt-rsync-put-flags" '.+' ||
 		git config --get "gcrypt.rsync-put-flags" '.+' || :)
+	# shellcheck disable=SC2034
 	Conf_force_required=$(git config --get --bool "remote.$NAME.gcrypt-require-explicit-force-push" '.+' ||
 		git config --get --bool gcrypt.require-explicit-force-push '.+' || :)
 

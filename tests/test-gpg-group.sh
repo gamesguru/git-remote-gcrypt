@@ -84,15 +84,7 @@ git remote add origin "gcrypt::$tempdir/repo.git"
 git config remote.origin.gcrypt-participants "mygroup"
 git config remote.origin.gcrypt-signingkey "$KEY1"
 
-echo "DEBUG: Checking if mygroup resolves via gpg..."
-gpg --list-keys mygroup || echo "DEBUG: gpg --list-keys mygroup FAILED"
-
-echo "DEBUG: gpg.conf content:"
-cat "${GNUPGHOME}/gpg.conf"
-
-echo "DEBUG: environment GNUPGHOME=$GNUPGHOME"
-
-export GCRYPT_DEBUG=1
+git config remote.origin.gcrypt-signingkey "$KEY1"
 
 echo "test" >test.txt
 git add test.txt
@@ -100,7 +92,7 @@ git commit -m "test"
 
 # Push should succeed and encrypt to BOTH keys
 print_info "Pushing..."
-git push origin master
+git push --force origin master
 
 # Verify recipients
 # We can check the manifest or just try to decrypt with each key

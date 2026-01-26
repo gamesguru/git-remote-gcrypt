@@ -54,7 +54,7 @@ git config remote.origin.gcrypt-participants "test@test.com"
 echo "content" >file.txt
 git add file.txt
 git commit -m "init" >/dev/null
-git push origin master >/dev/null 2>&1
+git push --force origin master >/dev/null 2>&1
 
 print_success "Repo initialized"
 
