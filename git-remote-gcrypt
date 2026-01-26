@@ -1527,14 +1527,18 @@ get_remote_file_list()
 		# to avoid D/F conflicts with the directory we are about to use.
 		git update-ref -d "refs/gcrypt/list-files" 2>/dev/null || :
 		
-		if git fetch --quiet "$URL" "refs/heads/*:refs/gcrypt/list-files/*" 2>/dev/null; then
+		echo_info "Debug: Fetching refs/heads/* from $URL to list files..."
+		if git fetch --verbose "$URL" "refs/heads/*:refs/gcrypt/list-files/*" >&2; then
+			echo_info "Debug: Fetch successful."
 			# List files from ALL fetched branches
 			# We iterate refs manually to detect which one has files
 			local refs all_files="" ref_files=""
 			# distinct refs
 			Global_Dirty_Refs=""
 			refs=$(git for-each-ref --format='%(refname)' "refs/gcrypt/list-files/")
+			echo_info "Debug: Found refs: $refs"
 			for ref in $refs; do
+				echo_info "Debug: Checking ref $ref"
 				ref_files=$(git -c core.quotePath=false ls-tree -r --name-only "$ref")
 				if isnonnull "$ref_files"; then
 					# Map refs/gcrypt/list-files/BRANCH -> refs/heads/BRANCH
