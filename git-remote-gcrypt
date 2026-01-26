@@ -722,6 +722,99 @@ make_new_repo()
 
 
 # $1 return var for goodsig match, $2 return var for signers text
+process_gpg_list()
+{
+	local recp_="$1"
+	local gpg_list="$2"
+	local r_keyinfo="" r_keyfpr="" r_tail_=""
+
+	r_tail_=$(echo "$recp_" | sed -e 's/^0x//')
+	filter_to @r_keyinfo "pub*" "$gpg_list"
+	if echo "$recp_" | grep -E -q '^[xA-F0-9]+$'; then # is $recp_ a keyid?
+		filter_to @r_keyfpr "fpr*$r_tail_*" "$gpg_list"
+	else
+		filter_to @r_keyfpr "fpr*" "$gpg_list"
+	fi
+
+	# Iterate over all matched keys
+	while IFS=: read -r _ _ _ _ keyid_ _ _ _ _ _ _ cap_ _; do
+		isnonnull "$keyid_" || continue
+
+		local this_fpr=""
+		this_fpr=$(echo "$gpg_list" | grep -A 1 "^pub:.*:$keyid_:" | grep "^fpr:" | cut -f 10 -d :)
+
+		print_debug "Resolved participant $recp_ to key: $keyid_ fpr: $this_fpr"
+
+		if isnonnull "$this_fpr"; then
+			case " $signers_ " in
+				*" $keyid_ "*) ;;
+				*) signers_="$signers_ $keyid_" ;;
+			esac
+			append_to @good_sig "^\[GNUPG:\] VALIDSIG .*$this_fpr$"
+		else
+			echo_info "WARNING: No fingerprint found for key $keyid_ (from $recp_)"
+		fi
+
+		# Check 'E'ncrypt capability
+		if ! iseq "${cap_#*E}" "$cap_"; then
+			if [ "$Conf_pubish_participants" = true ]; then
+				Recipients="$Recipients -r $keyid_"
+			else
+				Recipients="$Recipients -R $keyid_"
+			fi
+		fi
+	done <<EOF
+$r_keyinfo
+EOF
+}
+
+resolve_participant()
+{
+	local recp_="$1"
+	local gpg_list=""
+
+	# Try direct resolution first
+	if gpg_list=$(rungpg --with-colons --fingerprint -k "$recp_" 2>/dev/null) && [ -n "$gpg_list" ]; then
+		process_gpg_list "$recp_" "$gpg_list"
+		return 0
+	fi
+
+	# Fallback: Check for group definition in gpg.conf
+	local gpg_conf=""
+	if [ -n "${GNUPGHOME:-}" ]; then
+		gpg_conf="$GNUPGHOME/gpg.conf"
+	elif [ -d "$HOME/.gnupg" ]; then
+		# Default location fallback (best effort)
+		gpg_conf="$HOME/.gnupg/gpg.conf"
+	fi
+
+	if [ -n "$gpg_conf" ] && [ -f "$gpg_conf" ]; then
+		# Parse group definition: group name = val1 val2
+		local members
+		members=$(grep "^[[:space:]]*group[[:space:]]\+$recp_[[:space:]]*=" "$gpg_conf" | tail -1 | cut -d= -f2-)
+
+		# Trim and expand
+		if [ -n "$members" ]; then
+			print_debug "Expanded GPG group '$recp_' to: $members"
+			# shellcheck disable=SC2086
+			for m in $members; do
+				resolve_participant "$m"
+			done
+			return 0
+		fi
+	fi
+
+	# Failed to resolve
+	# If we can't find keys, we can't accept signatures from it (fingerprint unknown)
+	# But we can try to encrypt to it blindly if the user insists on using an alias logic we missed.
+	echo_info "WARNING: Could not resolve participant '$recp_' to keys."
+	if [ "$Conf_pubish_participants" = true ]; then
+		Recipients="$Recipients -r $recp_"
+	else
+		Recipients="$Recipients -R $recp_"
+	fi
+}
+
 read_config()
 {
 	# shellcheck disable=SC2034
@@ -751,61 +844,7 @@ read_config()
 
 	for recp_ in $conf_part
 	do
-		gpg_list=$(rungpg --with-colons --fingerprint -k "$recp_")
-		r_tail_=$(echo "$recp_" | sed -e 's/^0x//')
-		filter_to @r_keyinfo "pub*" "$gpg_list"
-		if echo "$recp_" | grep -E -q '^[xA-F0-9]+$'; then # is $recp_ a keyid?
-			filter_to @r_keyfpr "fpr*$r_tail_*" "$gpg_list"
-		else
-			filter_to @r_keyfpr "fpr*" "$gpg_list"
-		fi
-		# Iterate over all matched keys (handling GPG groups)
-		# Use Here-Doc to avoid subshell (SC2030/SC2031)
-		while IFS=: read -r _ _ _ _ keyid_ _ _ _ _ _ _ cap_ _; do
-			isnonnull "$keyid_" || continue
-
-			# Find validation fingerprint
-			# We need to grep specifically for the FPR line corresponding to this key
-			# But r_keyinfo is just pub lines. r_keyfpr has fpr lines.
-			# GPG output order: pub, fpr.
-			# Simpler approach: Re-run gpg for specific keyid to get its fingerprint securely?
-			# Or just trust the fpr list matches the pub list order? They usually do.
-			# But let's just grep the fingerprint from the full list for this keyid?
-			# Actually, we just need 'a' fingerprint for this keyid to trust signatures.
-
-			local this_fpr=""
-			# Get FPR for this keyid from the full listing we already grabbed
-			# Match 'fpr' record immediately following the 'pub' record for this keyid
-			# This is tricky with grep.
-			# Alternative: Trust that `gpg -k` expands the group into discrete keys.
-
-			# Let's simple check if we have a valid fingerprint for this keyid in our list
-			# The original code logic was trying to map input -> single key.
-			# New logic: Input -> List of keys.
-
-			# We can just get the FPR for this specific keyid
-			this_fpr=$(echo "$gpg_list" | grep -A 1 "^pub:.*:$keyid_:" | grep "^fpr:" | cut -f 10 -d :)
-
-			print_debug "Resolved participant $recp_ to key: $keyid_ fpr: $this_fpr"
-
-			if isnonnull "$this_fpr"; then
-				signers_="$signers_ $keyid_"
-				append_to @good_sig "^\[GNUPG:\] VALIDSIG .*$this_fpr$"
-			else
-				echo_info "WARNING: No fingerprint found for key $keyid_ (from $recp_)"
-			fi
-
-			# Check 'E'ncrypt capability
-			if ! iseq "${cap_#*E}" "$cap_"; then
-				if [ "$Conf_pubish_participants" = true ]; then
-					Recipients="$Recipients -r $keyid_"
-				else
-					Recipients="$Recipients -R $keyid_"
-				fi
-			fi
-		done <<EOF
-$r_keyinfo
-EOF
+		resolve_participant "$recp_"
 	done
 
 	if isnull "$Recipients"
@@ -821,7 +860,6 @@ EOF
 	fi
 	setvar "$1" "$good_sig"
 	setvar "$2" "$signers_"
-	print_debug "read_config done"
 }
 
 early_safety_check()
