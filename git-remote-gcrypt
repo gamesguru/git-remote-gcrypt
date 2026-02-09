@@ -1093,9 +1093,39 @@ get_verify_decrypt_pack()
 
 # download all packlines (pack :SHA256:a32abc1231) from stdin (or die)
 # $1 destdir (when repack, else "")
+# download all packlines (pack :SHA256:a32abc1231) from stdin (or die)
+# $1 destdir (when repack, else "")
 get_pack_files()
 {
 	local pack_id="" r_pack_key_line="" htype_="" pack_="" key_=""
+	local pack_reqs="$Tempdir/pack_reqs"
+	local batch_list="$Tempdir/batch_list"
+	local batch_dir="$Tempdir/batch"
+	local use_batch=false
+
+	# Buffer stdin to temp file
+	cat > "$pack_reqs"
+
+	# Optimization: batch download for rsync backend
+	if isurl rsync "$URL"; then
+		mkdir -p "$batch_dir"
+		: > "$batch_list"
+		while IFS=': ' read -r _ htype_ pack_; do
+			isnonnull "$pack_" || continue
+			echo "$pack_" >> "$batch_list"
+		done < "$pack_reqs"
+
+		if [ -s "$batch_list" ]; then
+			print_debug "Batch downloading $(line_count "$(cat "$batch_list")") files via rsync"
+			use_batch=true
+			(
+				if [ -n "${GCRYPT_TRACE:-}" ]; then set -x; fi
+				exec 0</dev/null
+				rsync -I -W --files-from="$batch_list" "$(rsynclocation "$URL")/" "$batch_dir" >&2
+			)
+		fi
+	fi
+
 	while IFS=': ' read -r _ htype_ pack_ # <<here-document
 	do
 		isnonnull "$pack_" || continue
@@ -1113,16 +1143,29 @@ get_pack_files()
 			echo_die "Packline malformed: $pack_id"
 		fi
 
-		get_verify_decrypt_pack "$htype_" "$pack_" "$key_" | \
-		if isnull "${1:-}"
-		then
-			# add to local pack list
-			git index-pack -v --stdin >/dev/null
-			xecho "pack $pack_id" >> "$Localdir/have_packs$GITCEPTION"
+		# If batched, use local file
+		if [ "$use_batch" = true ] && [ -f "$batch_dir/$pack_" ]; then
+			URL="$batch_dir" get_verify_decrypt_pack "$htype_" "$pack_" "$key_" | \
+			if isnull "${1:-}"
+			then
+				# add to local pack list
+				git index-pack -v --stdin >/dev/null
+				xecho "pack $pack_id" >> "$Localdir/have_packs$GITCEPTION"
+			else
+				git index-pack -v --stdin "$1/${pack_}.pack" >/dev/null
+			fi
 		else
-			git index-pack -v --stdin "$1/${pack_}.pack" >/dev/null
+			get_verify_decrypt_pack "$htype_" "$pack_" "$key_" | \
+			if isnull "${1:-}"
+			then
+				# add to local pack list
+				git index-pack -v --stdin >/dev/null
+				xecho "pack $pack_id" >> "$Localdir/have_packs$GITCEPTION"
+			else
+				git index-pack -v --stdin "$1/${pack_}.pack" >/dev/null
+			fi
 		fi
-	done
+	done < "$pack_reqs"
 }
 
 # Download and unpack remote packfiles
