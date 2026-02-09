@@ -970,8 +970,8 @@ ensure_connected()
 	if isurl sftp "$URL" || islocalrepo "$URL" || isurl rsync "$URL" || isurl rclone "$URL"
 	then
 		# not for gitception
-		isnull "$url_frag" ||
-			Manifestfile=$(xecho_n "$url_frag" | gpg_hash SHA224)
+		# Ensure Manifestfile is set (hash of url_frag, or hash of empty string)
+		Manifestfile=$(xecho_n "$url_frag" | gpg_hash SHA224)
 	else
 		# not for gitception
 		if isnull "$url_frag"; then
@@ -994,6 +994,8 @@ ensure_connected()
 		else
 			Gref_rbranch="refs/heads/$url_frag"
 		fi
+		# Ensure Manifestfile is set (hash of url_frag, or hash of empty string)
+		Manifestfile=$(xecho_n "$url_frag" | gpg_hash SHA224)
 	fi
 
 	Repoid=
