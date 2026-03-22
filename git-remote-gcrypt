@@ -1007,10 +1007,8 @@ ensure_connected()
 	tmp_manifest="$Tempdir/maniF"
 	tmp_stderr="$Tempdir/stderr"
 	print_debug "Getting manifest from $URL file $Manifestfile"
-	# GET "$URL" "$Manifestfile" "$tmp_manifest" 2>| "$tmp_stderr" || {
-    # Debugging: don't capture stderr, let it flow to console
 	git update-ref -d "$Gref-fetch" || :
-	GET "$URL" "$Manifestfile" "$tmp_manifest" || {
+	GET "$URL" "$Manifestfile" "$tmp_manifest" 2>| "$tmp_stderr" || {
 		if ! isnull "$Repoid"; then
 			cat >&2 "$tmp_stderr"
 			echo_info "Repository not found: $URL"
