@@ -69,7 +69,7 @@ git-remote-gcrypt (1.1-1) unstable; urgency=medium
 
   Upstream:
   * Add CONTRIBUTING.md and DEVELOPER-CERTIFICATE.
-  * Add experimental rclone backend (for early adoptors only).
+  * Add experimental rclone backend (for early adopters only).
     Thanks Beren Minor for the patch.
 
   Debian packaging:

@@ -21,7 +21,7 @@ where gcrypt will store the same representation in a git repository,
 bridged over arbitrary git transport.  Prefer `local` or `rsync://` if
 you can use one of those; see "Performance" below for discussion.
 
-There is also an experimental `rclone://` backend for early adoptors
+There is also an experimental `rclone://` backend for early adopters
 only (you have been warned).
 
 The aim is to provide confidential, authenticated git storage and
@@ -222,7 +222,7 @@ rclone backend
     ``rclone config``.  See rclone(1).
 
     The rclone backend is considered experimental and is for early
-    adoptors only.  You have been warned.
+    adopters only.  You have been warned.
 
 Repository format
 .................

@@ -1535,7 +1535,7 @@ setup()
 
 	if isurl rclone "$URL"; then
 		echo_info "WARNING: rclone support is experimental."
-		echo_info "WARNING: Early adoptors only.  Keep backups."
+		echo_info "WARNING: Early adopters only.  Keep backups."
 	fi
 }
 
