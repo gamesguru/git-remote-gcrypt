@@ -195,7 +195,7 @@ test/cov:	##H Show coverage gaps
 
 
 # Version from git describe (or fallback)
-__VERSION__ := $(shell git describe --tags --always --dirty 2>/dev/null || echo "@@DEV_VERSION@@")
+__VERSION__ := $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/-\([0-9]*\)-g/+\1~/' || echo "@@DEV_VERSION@@")
 
 
 .PHONY: generate

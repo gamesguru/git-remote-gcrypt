@@ -84,7 +84,7 @@ export HOME="${tempdir}"
 # Setup PATH to use local git-remote-gcrypt
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(dirname "$SCRIPT_DIR")"
-test_version=$(git describe --tags --always --dirty 2>/dev/null || echo "test")
+test_version=$(git describe --tags --always --dirty 2>/dev/null | sed 's/-\([0-9]*\)-g/+\1~/' || echo "test")
 # Escape special chars for sed (delimiter /, &, and backslash)
 test_version=$(printf '%s\n' "$test_version" | sed 's:[&/\]:\\&:g')
 cp "$repo_root/git-remote-gcrypt" "$tempdir/git-remote-gcrypt"

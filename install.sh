@@ -44,7 +44,7 @@ fi
 
 # Get base version then append OS identifier
 if [ -d .git ] && command -v git >/dev/null; then
-	VERSION=$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo "dev")
+	VERSION=$(git describe --tags --always --dirty 2>/dev/null | sed 's/-\([0-9]*\)-g/+\1~/' || git rev-parse --short HEAD 2>/dev/null || echo "dev")
 else
 	if [ ! -f debian/changelog ]; then
 		echo "Error: debian/changelog not found (and not a git repo)" >&2
