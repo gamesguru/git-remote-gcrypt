@@ -423,7 +423,7 @@ gitception_remove()
 {
 	local tree_id="" commit_id="" temp_index=""
 	temp_index=$(mktemp)
-	
+
 	# Use temporary index to cleanly remove file (handles recursion)
 	(
 		export GIT_INDEX_FILE="$temp_index"
@@ -763,7 +763,7 @@ process_gpg_list()
 
 		# Check 'E'ncrypt capability
 		if ! iseq "${cap_#*E}" "$cap_"; then
-			if [ "$Conf_pubish_participants" = true ]; then
+			if [ "$Conf_publish_participants" = true ]; then
 				Recipients="$Recipients -r $keyid_"
 			else
 				Recipients="$Recipients -R $keyid_"
@@ -814,7 +814,7 @@ resolve_participant()
 	# If we can't find keys, we can't accept signatures from it (fingerprint unknown)
 	# But we can try to encrypt to it blindly if the user insists on using an alias logic we missed.
 	echo_info "WARNING: Could not resolve participant '$recp_' to keys."
-	if [ "$Conf_pubish_participants" = true ]; then
+	if [ "$Conf_publish_participants" = true ]; then
 		Recipients="$Recipients -r $recp_"
 	else
 		Recipients="$Recipients -R $recp_"
@@ -829,7 +829,7 @@ read_config()
 		git config --path user.signingkey || :)
 	conf_part=$(git config --get "remote.$NAME.gcrypt-participants" '.+' ||
 		git config --get gcrypt.participants '.+' || :)
-	Conf_pubish_participants=$(git config --get --bool "remote.$NAME.gcrypt-publish-participants" '.+' ||
+	Conf_publish_participants=$(git config --get --bool "remote.$NAME.gcrypt-publish-participants" '.+' ||
 		git config --get --bool gcrypt.publish-participants || :)
 	Conf_gpg_args=$(git config --get gcrypt.gpg-args '.+' || :)
 	Conf_rsync_put_flags=$(git config --get "remote.$NAME.gcrypt-rsync-put-flags" '.+' ||
@@ -1360,13 +1360,13 @@ check_safety()
 	if isurl sftp "$URL" || isurl rsync "$URL" || isurl rclone "$URL" || islocalrepo "$URL"; then
 		return 0
 	fi
-	
+
 	# Get all files in the remote
 	remote_files=$(git -c core.quotePath=false ls-tree --name-only "$Gref" 2>/dev/null || :)
-	
+
 	# If no files, nothing to check
 	isnonnull "$remote_files" || return 0
-	
+
 	# Build whitelist of valid gcrypt files
 	if iseq "$Did_find_repo" "yes"; then
 		# We found a gcrypt manifest, so we know what files are valid:
@@ -1381,7 +1381,7 @@ check_safety()
 		# ANY file in the remote is suspicious (we're about to initialize gcrypt).
 		bad_files="$remote_files"
 	fi
-	
+
 	# If we have a whitelist, compare
 	if isnull "$bad_files" && isnonnull "$valid_files"; then
 		for f in $remote_files; do
@@ -1391,7 +1391,7 @@ check_safety()
 		done
 		bad_files="${bad_files#"$Newline"}"
 	fi
-	
+
 	if isnonnull "$bad_files"; then
 		echo_info "ERROR: Remote repository contains unencrypted or unknown files!"
 		echo_info "To protect your privacy, git-remote-gcrypt will NOT push to this remote."
@@ -1429,7 +1429,7 @@ check_safety()
 		echo_info "OR, to ignore this and leak that you are using gcrypt:"
 		echo_info "   git config remote.$NAME.gcrypt-allow-unencrypted-remote true"
 		echo_info ""
-		
+
 		echo_die "Aborted because remote contains unencrypted files."
 	fi
 }
@@ -1635,7 +1635,7 @@ get_remote_file_list()
 		# Clean up any stale refs/gcrypt/list-files (could be a file from old version)
 		# to avoid D/F conflicts with the directory we are about to use.
 		git update-ref -d "refs/gcrypt/list-files" 2>/dev/null || :
-		
+
 		if git fetch --quiet "$URL" "refs/heads/*:refs/gcrypt/list-files/*" 2>/dev/null; then
 			# List files from ALL fetched branches
 			# We iterate refs manually to detect which one has files
@@ -1665,9 +1665,9 @@ get_remote_file_list()
 					all_files="$all_files$ref_files$Newline"
 				fi
 			done
-			
+
 			r_files=$(xecho "$all_files" | sort -u)
-			
+
 			# Cleanup temporary refs
 			git for-each-ref --format='%(refname)' "refs/gcrypt/list-files/" | \
 				while read -r ref; do git update-ref -d "$ref"; done || :
@@ -1712,7 +1712,7 @@ cmd_clean()
 		git remote remove "$NAME" 2>/dev/null || true
 		exit 0
 	fi
-	
+
 	# Build whitelist of valid gcrypt files
 	valid_files=""
 	if iseq "$Did_find_repo" "yes"; then
@@ -1721,7 +1721,7 @@ cmd_clean()
 			valid_files="$valid_files$Newline$f"
 		done
 	fi
-	
+
 	# Find files to delete
 	bad_files=""
 	OIFS="$IFS"
@@ -1751,7 +1751,7 @@ cmd_clean()
 		git remote remove "$NAME" 2>/dev/null || true
 		exit 0
 	fi
-	
+
 	echo_info "Found the following files to remove:"
 	xecho "$bad_files" | sed 's/^/  /' >&2
 
@@ -1829,20 +1829,20 @@ cmd_clean()
 cmd_stat()
 {
 	local remote_files="" file_count=0 tracked_count=0 untracked_count=0 valid_files="" f=""
-	
+
 	if ! ensure_connected; then
 		echo_die "Could not connect to $URL."
 	fi
-	
+
 	get_remote_file_list @remote_files || echo_die "Failed to list remote files."
 	file_count=$(line_count "$remote_files")
 	if isnull "$remote_files"; then
 		file_count=0
 	fi
-	
+
 	echo "Remote: $URL"
 	echo "Total files: $file_count"
-	
+
 	if [ "$Did_find_repo" = "yes" ]; then
 		echo "Gcrypt repository: detected"
 		echo "Manifest: found"

@@ -84,6 +84,8 @@ format:	##H Format scripts
 	@$(call print_info,Formatting YAML files...)
 	-prettier --write .github/workflows
 	@$(call print_success,OK.)
+	-pre-commit run --all-files
+	@$(call print_success,OK.)
 
 .PHONY: lint
 lint:	##H Run shellcheck

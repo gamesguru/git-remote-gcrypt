@@ -69,7 +69,7 @@ Command Reference
       list             List refs in remote repository
       push <refspec>   Push refs to remote repository
       fetch <sha> <ref> Fetch refs from remote repository
-    
+
     Environment Variables:
       GCRYPT_DEBUG=1        Enable verbose debug logging to stderr
       GCRYPT_TRACE=1        Enable shell tracing (set -x) for rsync/curl commands
@@ -258,7 +258,7 @@ Example manifest file (with ellipsis for brevity)::
     $ gpg -d 91bd0c092128cf2e60e1a608c31e92caf1f9c1595f83f2890ef17c0e4881aa0a
     542051c7cd152644e4995bda63cc3ddffd635958 refs/heads/next
     3c9e76484c7596eff70b21cbe58408b2774bedad refs/heads/master
-    pack :SHA256:f2ad50316...cd4ba67092dc4 z8YoAnFpMlW...3PkI2mND49P1qm
+    pack :SHA256:f2ad50316...cd4ba67092dc4 z8YoAnFpMlW...3PkI2mAND49P1qm
     pack :SHA256:a6e17bb4c...426492f379584 82+k2cbiUn7...dgXfyX6wXGpvVa
     keep :SHA256:f2ad50316...cd4ba67092dc4 1
     repo :id:OYiSleGirtLubEVqJpFF

@@ -181,7 +181,7 @@ $GIT config user.signingkey "test@test.com"
 echo "valid content" >content.txt
 $GIT add content.txt
 $GIT commit -m "init valid"
-# Push to intialize
+# Push to initialize
 set -x
 $GIT push -f "gcrypt::$tempdir/valid.git" master:master || {
 	set +x

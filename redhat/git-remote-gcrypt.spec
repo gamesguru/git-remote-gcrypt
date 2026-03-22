@@ -41,4 +41,3 @@ export prefix="%{_prefix}"
 %doc CHANGELOG CONTRIBUTING.rst README.rst
 
 %changelog
-

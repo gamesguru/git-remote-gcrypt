@@ -376,19 +376,19 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
     # AND local gcrypt-id is not set.
     # Current behavior: gcrypt creates a NEW repo, potentially overwriting!
     # This test documents (and may later guard against) this behavior.
-    
+
     cd "${tempdir}"
-    
+
     # Save the manifest file
     # Find and delete manifest files (hashes at root of repo for local transport)
     # We look for files with 64 hex characters in the repo directory
     # manifests=$(find "${tempdir}/second.git" -maxdepth 1 -type f -regextype posix-egrep -regex ".*/[0-9a-f]{56,64}")
     # Simpler approach: globbing (which might fail if no match) then check
-    
+
     # Debug: List what's actually there
     print_info "DEBUG: Listing ${tempdir}/second.git:"
     find "${tempdir}/second.git" -mindepth 1 -maxdepth 1 -printf '%f\n' | indent
-    
+
     # DEBUG: Dump directory listing to stdout
     print_info "DEBUG: Listing ${tempdir}/second.git contents:"
     find "${tempdir}/second.git" -mindepth 1 -maxdepth 1 -exec basename {} \; | sort | indent
@@ -397,9 +397,9 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
     # matching basename explicitly via grep. Using sed for portable basename extraction.
     manifest_names=$(find "${tempdir}/second.git" -maxdepth 1 -type f | sed 's!.*/!!' | grep -E '^[0-9a-fA-F]{56,64}$' || true)
     print_info "DEBUG: Detected manifest candidate(s): ${manifest_names:-none}"
-    
+
     # Check if we actually found anything
-    if [ -n "$manifest_names" ]; then            
+    if [ -n "$manifest_names" ]; then
         for fname in $manifest_names; do
              f="${tempdir}/second.git/$fname"
              cp "$f" "${tempdir}/manifest_backup_${fname}"
@@ -418,7 +418,7 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
         manifest_saved=false
         print_warn "Skipping manifest backup - No manifest file/ref found to delete."
     fi
-    
+
     # Create a fresh clone to test with
     mkdir "${tempdir}/fresh_clone_test"
     cd "${tempdir}/fresh_clone_test"
@@ -429,7 +429,7 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
     echo "test data" > test.txt
     git add test.txt
     git commit -m "Initial commit"
-    
+
     # Try to push to the EXISTING remote
     # Since this fresh repo has no gcrypt-id, it could be dangerous
     step9_output="${tempdir}/network_guard_output"
@@ -441,7 +441,7 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
     ) | tee "${step9_output}"
     push_result=$?
     set -e
-    
+
     # The push should FAIL now because we require --force for missing manifests
     if [ $push_result -ne 0 ]; then
         print_success "Push failed (PROTECTED against accidental overwrite)."
@@ -456,7 +456,7 @@ print_info "Step 9: Network Failure Guard Test (manifest unavailable):"
         print_err "Push SUCCEEDED without --force (Safety check failed)."
         exit 1
     fi
-    
+
     # Restore manifest(s) if we backed them up
     if [ "$manifest_saved" = true ]; then
         if [ -n "${git_ref_backup:-}" ]; then
@@ -485,9 +485,9 @@ print_info "Step 10: New Repo Safety Test (Require Force):"
     # We'll use a new random path that definitely doesn't exist
     rand_id=$(date +%s)
     missing_remote_url="${tempdir}/missing_repo_${rand_id}.git"
-    
+
     cd "${tempdir}/fresh_clone_test"
-    
+
 
 
     print_info "Attempting push to missing remote WITHOUT force (Should Fail)..."
@@ -497,7 +497,7 @@ print_info "Step 10: New Repo Safety Test (Require Force):"
     ) > "step10.fail"
     rc=$?
     set -e
-    
+
     if [ $rc -ne 0 ]; then
         print_success "Push correctly failed without force."
         if grep -q "Use --force to create valid new repository" "step10.fail"; then
@@ -516,7 +516,7 @@ print_info "Step 10: New Repo Safety Test (Require Force):"
     ) > "step10.succ"
     rc=$?
     set -e
-    
+
     if [ $rc -eq 0 ]; then
         print_success "Push succeeded with force."
     else
@@ -537,7 +537,7 @@ section_break
 print_info "Step 11: Stat Command Test:"
 {
     cd "${tempdir}/first"
-    
+
     # Run stat on the valid repo (second.git)
     output_file="${tempdir}/stat_output"
     print_info "Running stat on valid repo (second.git)..."
@@ -545,10 +545,10 @@ print_info "Step 11: Stat Command Test:"
         set -x
         git-remote-gcrypt stat "gcrypt::${tempdir}/second.git#${default_branch}"
     ) > "${output_file}" 2>&1
-    
+
     # Display output for debugging
     indent < "${output_file}"
-    
+
     # Verify expected output strings
     if grep -q "Total files:" "${output_file}" && \
        grep -q "Gcrypt repository: detected" "${output_file}" && \
@@ -563,6 +563,3 @@ print_info "Step 11: Stat Command Test:"
     fi
 
 } | indent
-
-
-

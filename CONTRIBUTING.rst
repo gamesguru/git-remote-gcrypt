@@ -41,7 +41,7 @@ If you don't want to deal with the mailing list and just want to send
 patches, you should feel free to pass ``--to=spwhitton@spwhitton.name``
 to git-send-email(1).
 
-Alternatively, publish a git branch somewhere publically accessible (a
+Alternatively, publish a git branch somewhere publicly accessible (a
 GitHub fork is fine) and write to me asking me to merge it.  I may
 convert your branch back into patches when sending you feedback :)
 
