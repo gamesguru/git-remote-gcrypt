@@ -197,7 +197,8 @@ Hex40=$Hex40$Hex40$Hex40$Hex40$Hex40 # Match SHA-1 hexdigest
 GPG="$(git config --get "gpg.program" '.+' || echo gpg)"
 
 Did_find_repo=  # yes for connected, no for no repo
-Localdir="${GIT_DIR:=.git}/remote-gcrypt"
+GIT_DIR="${GIT_DIR:-$(git rev-parse --git-dir 2>/dev/null || echo .git)}"
+Localdir="${GIT_DIR}/remote-gcrypt"
 Tempdir=
 
 Repoid=
