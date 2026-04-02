@@ -1013,6 +1013,7 @@ ensure_connected()
 			cat >&2 "$tmp_stderr"
 			echo_info "Repository not found: $URL"
 			echo_info "..but repository ID is set. Aborting."
+			echo_info "Hint: To force initialization, run: git config --unset remote.$NAME.gcrypt-id"
 			return 1
 		else
 			if [ "$1" = "strict" ]; then
