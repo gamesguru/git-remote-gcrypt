@@ -69,7 +69,7 @@ Command Reference
       list             List refs in remote repository
       push <refspec>   Push refs to remote repository
       fetch <sha> <ref> Fetch refs from remote repository
-
+    
     Environment Variables:
       GCRYPT_DEBUG=1        Enable verbose debug logging to stderr
       GCRYPT_TRACE=1        Enable shell tracing (set -x) for rsync/curl commands

@@ -576,10 +576,15 @@ REMOVE()
 		print_debug "Calling rsync..."
 		(
 			if [ -n "${GCRYPT_TRACE:-}" ]; then set -x; fi
-			# rsync needs parent directories included or it won't traverse them
+			# rsync needs parent directories included or it won't traverse them.
+			# We only create directories locally if they are NOT in the bad files list,
+			# to allow directories that ARE in the bad files list to be deleted.
 			echo "$2" | while IFS= read -r f; do
 				d=$(dirname "$f")
-				mkdir -p "$Localdir/$d"
+				# Skip "." and directories that are explicitly in the removal list
+				if isnoteq "$d" "." && ! xecho "$2" | xgrep -qxF "$d"; then
+					mkdir -p "$Localdir/$d"
+				fi
 			done
 
 			# rsync needs stdin for --include-from=-
@@ -595,7 +600,7 @@ EOF
 	elif islocalrepo "$1"
 	then
 		echo "$2" | while IFS= read -r fn_; do
-			rm -f "$1"/"$fn_"
+			rm -rf "$1"/"$fn_"
 		done
 	else
 		# gitception handling
@@ -1613,14 +1618,15 @@ get_remote_file_list()
 	# For local backends, list files with ls
 	# For git backends, list files from the gcrypt branch tree.
 	if isurl rsync "$URL"; then
-		r_files=$(rsync --no-motd --list-only "$(rsynclocation "$URL")/" | awk '{print $NF}' | grep -vE '^\.$|^\.\.$') || return 1
+		r_files=$(rsync -r --no-motd --list-only "$(rsynclocation "$URL")/" | awk '{print $NF}' | grep -vE '^\.$|^\.\.$') || return 1
 	elif isurl rclone "$URL"; then
-		r_files=$(rclone lsf "${URL#rclone://}") || return 1
+		r_files=$(rclone lsf -R "${URL#rclone://}") || return 1
 	elif isurl sftp "$URL"; then
+		# curl doesn't easily support recursive listing
 		r_files=$(curl -s -S -k "$URL/" | grep -vE '^\.$|^\.\.$') || return 1
 	elif islocalrepo "$URL"; then
 		if [ -d "$URL" ]; then
-			r_files=$(ls -1A "$URL") || return 1
+			r_files=$(cd "$URL" && find . ! -path "." -printf '%P\n') || return 1
 		else
 			# If directory doesn't exist, it's "empty" (or will be created)
 			r_files=""
