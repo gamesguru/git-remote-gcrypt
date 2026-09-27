@@ -29,7 +29,7 @@ RAW_HELP=$(sed -n "/^$SCRIPT_KEY=\"/,/\"$/p" "$SRC" | sed "s/^$SCRIPT_KEY=\"//;s
 
 # 1. Prepare {commands_help} for README (Indented for RST)
 # We want the Options and Git Protocol Commands sections
-COMMANDS_HELP=$(printf '%s\n' "$RAW_HELP" | sed -n '/^Options:/,$p' | sed 's/^/    /')
+COMMANDS_HELP=$(printf '%s\n' "$RAW_HELP" | sed -n '/^Options:/,$p' | sed '/./s/^/    /')
 
 # 2. Parse Commands and Flags for Completions
 # Extract command names (first word after 2 spaces)
