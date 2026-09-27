@@ -368,7 +368,11 @@ gitception_get()
 	if [ -e "$fet_head" ]; then
 		command mv -f "$fet_head" "$fet_head.$$~" || :
 	fi
-	if git fetch -q -f "$1" "$Gref_rbranch:$Gref-fetch" >/dev/null; then
+	# ensure_connected fetches the backing branch before reading the manifest.
+	# Reuse that snapshot for subsequent file lookups (notably every packfile)
+	# instead of negotiating and fetching the same branch once per file.
+	if git rev-parse -q --verify "$Gref-fetch" >/dev/null ||
+		git fetch -q -f "$1" "$Gref_rbranch:$Gref-fetch" >/dev/null; then
 		obj_id="$(git -c core.quotePath=false ls-tree "$Gref-fetch" | xgrep -E '\b'"$2"'$' | awk '{print $3}')"
 		if isnonnull "$obj_id" && git cat-file blob "$obj_id"; then
 			ret_=:
