@@ -1083,12 +1083,46 @@ get_verify_decrypt_pack()
 {
 	local rcv_id="" tmp_encrypted=""
 	tmp_encrypted="$Tempdir/packF"
-	GET "$URL" "$2" "$tmp_encrypted" &&
+	rm -f "$tmp_encrypted"
+	if ! GET "$URL" "$2" "$tmp_encrypted"; then
+		rm -f "$tmp_encrypted"
+		if [ -f "$Tempdir/repack_missing_packs" ]; then
+			echo "$2" >> "$Tempdir/repack_missing_packs"
+			return 1
+		fi
+		echo_die "Could not download remote packfile $2"
+	fi
 	if ! rcv_id=$(gpg_hash "$1" < "$tmp_encrypted") || isnoteq "$rcv_id" "$2"; then
 		echo_die "Packfile $2 does not match digest!"
 	fi
 	DECRYPT "$3" < "$tmp_encrypted"
 	rm -f "$tmp_encrypted"
+}
+
+# Download, decrypt, and index a pack. Return 2 only when it is missing during
+# a repack; all other failures remain fatal to the caller.
+index_remote_pack()
+{
+	local destination_="${4:-}" index_err_="$Tempdir/index-pack.err"
+	rm -f "$index_err_"
+	if isnull "$destination_"; then
+		if (set -o pipefail; get_verify_decrypt_pack "$1" "$2" "$3" | \
+			git index-pack -v --stdin >/dev/null 2>"$index_err_"); then
+			return 0
+		fi
+	else
+		if (set -o pipefail; get_verify_decrypt_pack "$1" "$2" "$3" | \
+			git index-pack -v --stdin "$destination_/${2}.pack" >/dev/null 2>"$index_err_"); then
+			return 0
+		fi
+	fi
+
+	if [ -f "$Tempdir/repack_missing_packs" ] &&
+		xfeed "$2" grep -qxF -f "$Tempdir/repack_missing_packs"; then
+		return 2
+	fi
+	cat "$index_err_" >&2
+	return 1
 }
 
 # download all packlines (pack :SHA256:a32abc1231) from stdin (or die)
@@ -1097,7 +1131,7 @@ get_verify_decrypt_pack()
 # $1 destdir (when repack, else "")
 get_pack_files()
 {
-	local pack_id="" r_pack_key_line="" htype_="" pack_="" key_=""
+	local pack_id="" r_pack_key_line="" htype_="" pack_="" key_="" index_status_=""
 	local pack_reqs="$Tempdir/pack_reqs"
 	local batch_list="$Tempdir/batch_list"
 	local batch_dir="$Tempdir/batch"
@@ -1143,28 +1177,27 @@ get_pack_files()
 			echo_die "Packline malformed: $pack_id"
 		fi
 
-		# If batched, use local file
+		# If batched, use the local batch file; otherwise fetch the pack directly.
 		if [ "$use_batch" = true ] && [ -f "$batch_dir/$pack_" ]; then
-			URL="$batch_dir" get_verify_decrypt_pack "$htype_" "$pack_" "$key_" | \
-			if isnull "${1:-}"
-			then
-				# add to local pack list
-				git index-pack -v --stdin >/dev/null
-				xecho "pack $pack_id" >> "$Localdir/have_packs$GITCEPTION"
+			if URL="$batch_dir" index_remote_pack "$htype_" "$pack_" "$key_" "${1:-}"; then
+				:
 			else
-				git index-pack -v --stdin "$1/${pack_}.pack" >/dev/null
+				index_status_=$?
 			fi
 		else
-			get_verify_decrypt_pack "$htype_" "$pack_" "$key_" | \
-			if isnull "${1:-}"
-			then
-				# add to local pack list
-				git index-pack -v --stdin >/dev/null
-				xecho "pack $pack_id" >> "$Localdir/have_packs$GITCEPTION"
+			if index_remote_pack "$htype_" "$pack_" "$key_" "${1:-}"; then
+				:
 			else
-				git index-pack -v --stdin "$1/${pack_}.pack" >/dev/null
+				index_status_=$?
 			fi
 		fi
+
+		if [ "${index_status_:-0}" = 2 ]; then
+			echo_info "Remote packfile $pack_ is missing; rebuilding from refs."
+		elif [ "${index_status_:-0}" != 0 ]; then
+			echo_die "Could not decrypt or index remote packfile $pack_"
+		fi
+		index_status_=0
 	done < "$pack_reqs"
 }
 
@@ -1207,10 +1240,19 @@ $Keeplist
 EOF
 	fi
 
+	: > "$Tempdir/repack_missing_packs"
 	xfeed "$r_del_list" get_pack_files "$Tempdir/pack/"
+	if [ -s "$Tempdir/repack_missing_packs" ]; then
+		# Some manifests can reference packfiles that no longer exist on the
+		# backend. Rebuild their reachable objects from local copies of all refs.
+		echo_info "Rebuilding objects from remote refs because packfiles are missing."
+		xfeed "$(xfeed "$Refslist" cut -f 1 -d ' ')" git rev-list --objects --stdin --
+	fi
 
-	(set +f; pipefail git verify-pack -v "$Tempdir"/pack/*.idx) |
-		grep -E '^[0-9a-f]{40}' | cut -f 1 -d ' '
+	if find "$Tempdir/pack" -name '*.idx' -print -quit | grep -q .; then
+		(set +f; pipefail git verify-pack -v "$Tempdir"/pack/*.idx) |
+			grep -E '^[0-9a-f]{40}' | cut -f 1 -d ' '
+	fi
 
 	Packlist=$r_keep_packlist
 	setvar "$1" "$r_del_list"
